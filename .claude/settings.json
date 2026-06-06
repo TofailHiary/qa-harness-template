@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git pull:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git fetch:*)",
+      "Bash(git rev-parse:*)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_network_requests",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__wait_for",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__list_network_requests",
+      "mcp__chrome-devtools__get_network_request",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__http-client__http_get",
+      "mcp__github__get_file_contents",
+      "mcp__github__search_code",
+      "mcp__github__pull_request_read",
+      "mcp__claude_ai_Atlassian__getJiraIssue",
+      "mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql",
+      "mcp__filesystem__read_text_file"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/.git/config)",
+      "Write(.env)",
+      "Write(.env.*)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf:*)",
+      "mcp__github__add_comment_to_pending_review",
+      "mcp__github__add_issue_comment",
+      "mcp__github__create_branch",
+      "mcp__github__create_or_update_file",
+      "mcp__github__create_pull_request",
+      "mcp__github__delete_file",
+      "mcp__github__merge_pull_request",
+      "mcp__github__push_files",
+      "mcp__github__update_pull_request",
+      "mcp__postman-api-mcp__createCollection",
+      "mcp__postman-api-mcp__deleteCollection",
+      "mcp__postman-api-mcp__createEnvironment",
+      "mcp__postman-api-mcp__deleteEnvironment"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-writes.py\"" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-bash-writes.py\"" }
+        ]
+      },
+      {
+        "matcher": "mcp__filesystem__write_file|mcp__filesystem__edit_file|mcp__filesystem__move_file|mcp__filesystem__create_directory",
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-filesystem-writes.py\"" }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-powershell-writes.py\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__playwright__browser_take_screenshot",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/copy-screenshot-evidence.sh\"" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/memory-rotation.js\"" },
+          { "type": "command", "command": "echo '{\"additionalContext\": \"QA harness ready. If PROJECT-PROFILE.md is unconfigured, run /configure-project. Memory is on-demand for loading, mandatory for saving at end of task.\"}'" }
+        ]
+      }
+    ]
+  },
+  "autoMemoryEnabled": true,
+  "teammateMode": "in-process"
+}

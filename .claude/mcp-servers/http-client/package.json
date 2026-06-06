@@ -1,0 +1,8 @@
+{
+  "name": "qa-harness-http-client-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal bundled HTTP-client MCP server for the QA harness (GET/POST/request + default headers). Dependency-free Node.js (built-in modules only).",
+  "bin": { "qa-http-client-mcp": "server.js" },
+  "main": "server.js"
+}

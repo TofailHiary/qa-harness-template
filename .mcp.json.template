@@ -1,0 +1,72 @@
+{
+  "//": "TEMPLATE. /configure-project copies this to .mcp.json, replaces ${PROJECT_ROOT} with this project's absolute path, sets disabled:true for servers whose capability is off in PROJECT-PROFILE.md §2, and leaves ${ENV_VAR} secrets to be supplied via environment variables (Claude Code expands them at runtime). NEVER commit a filled .mcp.json (see .gitignore). github + Atlassian/Jira are connector/global MCPs configured outside this file.",
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${PROJECT_ROOT}/qa-evidence", "${PROJECT_ROOT}/.claude"],
+      "disabled": false,
+      "_capability": "always"
+    },
+    "http-client": {
+      "command": "node",
+      "args": ["${PROJECT_ROOT}/.claude/mcp-servers/http-client/server.js"],
+      "disabled": false,
+      "_capability": "API"
+    },
+    "playwright": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@latest"],
+      "disabled": false,
+      "_capability": "Browser",
+      "_note": "On macOS/Linux use command 'npx' with args ['-y','@playwright/mcp@latest'] (drop the cmd /c wrapper)."
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"],
+      "disabled": false,
+      "_capability": "Browser"
+    },
+    "mcp_server_mysql": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@benborla29/mcp-server-mysql"],
+      "env": {
+        "MYSQL_HOST": "${QA_DB_HOST}",
+        "MYSQL_PORT": "${QA_DB_PORT}",
+        "MYSQL_USER": "${QA_DB_USER}",
+        "MYSQL_PASS": "${QA_DB_PASS}",
+        "MYSQL_DB": "${QA_DB_NAME}",
+        "ALLOW_INSERT_OPERATION": "false",
+        "ALLOW_UPDATE_OPERATION": "false",
+        "ALLOW_DELETE_OPERATION": "false"
+      },
+      "disabled": false,
+      "_capability": "DB",
+      "_note": "Write flags ship false (read-only). /configure-project flips test-DB writes on only if PROJECT-PROFILE.md §6 allows. For Postgres/Mongo, swap this server for the matching MCP and update PROJECT-PROFILE.md §4."
+    },
+    "mcp_server_mysql_prod": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@benborla29/mcp-server-mysql"],
+      "env": {
+        "MYSQL_HOST": "${PROD_DB_HOST}",
+        "MYSQL_PORT": "${PROD_DB_PORT}",
+        "MYSQL_USER": "${PROD_DB_USER}",
+        "MYSQL_PASS": "${PROD_DB_PASS}",
+        "MYSQL_DB": "${PROD_DB_NAME}",
+        "ALLOW_INSERT_OPERATION": "false",
+        "ALLOW_UPDATE_OPERATION": "false",
+        "ALLOW_DELETE_OPERATION": "false"
+      },
+      "disabled": true,
+      "_capability": "Prod-DB",
+      "_note": "Read-only always. Often needs an SSH tunnel on 127.0.0.1; bring the tunnel up before enabling."
+    },
+    "postman-api-mcp": {
+      "command": "npx",
+      "args": ["-y", "postman-mcp-server", "--full"],
+      "env": { "POSTMAN_API_KEY": "${POSTMAN_API_KEY}" },
+      "disabled": true,
+      "_capability": "Postman",
+      "_note": "Package name may differ by version; adjust if npx cannot resolve it."
+    }
+  }
+}
