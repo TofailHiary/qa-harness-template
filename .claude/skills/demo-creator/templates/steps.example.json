@@ -1,0 +1,13 @@
+[
+  {"id": "INTRO", "ctx": 1, "label": "Notification settings", "text": "This is a short demo of the Notification settings page in the sample app. An admin chooses the region and the channels the team is notified on. We are on a local sample, with test data."},
+  {"id": "P1-01", "ctx": 1, "label": "Part 1 · Admin · 1 of 7", "text": "First, the admin logs in."},
+  {"id": "P1-02", "ctx": 1, "label": "Part 1 · Admin · 2 of 7", "text": "The dashboard shows 24 open orders and 3 of 4 notification channels enabled."},
+  {"id": "P1-03", "ctx": 1, "label": "Part 1 · Admin · 3 of 7", "text": "In the top menu, click Notification settings."},
+  {"id": "P1-04", "ctx": 1, "label": "Part 1 · Admin · 4 of 7", "text": "The region is North. We choose West, because the team moved."},
+  {"id": "P1-05", "ctx": 1, "label": "Part 1 · Admin · 5 of 7", "text": "Tick Weekly digest. The counter says 4 of 4 channels enabled, and Save becomes available."},
+  {"id": "P1-06", "ctx": 1, "label": "Part 1 · Admin · 6 of 7", "text": "Show advanced options opens the quiet hours switch. We leave it off."},
+  {"id": "P1-07", "ctx": 1, "label": "Part 1 · Admin · 7 of 7", "text": "Save Changes. The green message confirms: Notification settings saved for region West."},
+  {"id": "P2-01", "ctx": 2, "label": "Part 2 · User · 1 of 2", "text": "A regular user logs in on their own browser."},
+  {"id": "P2-02", "ctx": 2, "label": "Part 2 · User · 2 of 2", "text": "Their dashboard shows the same counters, because the settings are shared."},
+  {"id": "OUTRO", "ctx": 2, "label": "Notification settings", "text": "That is Notification settings. The admin picks the region and the channels once, saves, and every user sees the result."}
+]

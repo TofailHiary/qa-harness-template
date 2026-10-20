@@ -4,7 +4,17 @@
 Resolves the project root from CLAUDE_PROJECT_DIR (set by Claude Code) and reads
 harness-config.json sitting next to this file. The bootstrap (/configure-project)
 generates harness-config.json from PROJECT-PROFILE.md; if a field is empty we fall
-back to a sensible default derived from the project root."""
+back to a sensible default derived from the project root.
+
+Fields (all optional):
+  memory_root          absolute path of the auto-memory folder ("" = derive from CLAUDE_PROJECT_DIR)
+  evidence_root        evidence folder, relative to the project root or absolute (default "qa-evidence")
+  allowed_write_globs  project-relative globs the Write/Edit tools may touch (the harness's own config)
+  protected_repos      folder names (under the project root) that are READ-ONLY product source
+  owned_repos          folder names that are the team's OWN code: edits, commits and pushes are allowed
+                       there (the exemption applies only when no protected repo is in reach)
+  gate                 completion-gate settings (see completion-gate.py)
+"""
 import json
 import os
 
@@ -47,6 +57,13 @@ def is_under(path, root):
         return False
 
 
+def _names(v):
+    """Accept a list of folder names (or a single string); drop blanks."""
+    if isinstance(v, str):
+        v = [v]
+    return [str(x).strip().strip("/\\") for x in (v or []) if str(x).strip()]
+
+
 def load():
     cfg = {}
     try:
@@ -65,5 +82,7 @@ def load():
         "memory_root": norm(mem),
         "evidence_root": norm(ev),
         "allowed_write_globs": cfg.get("allowed_write_globs", []),
-        "protected_repos": cfg.get("protected_repos", []),
+        "protected_repos": _names(cfg.get("protected_repos", [])),
+        "owned_repos": _names(cfg.get("owned_repos", [])),
+        "gate": cfg.get("gate", {}) or {},
     }

@@ -2,9 +2,10 @@
 """PreToolUse Write|Edit|NotebookEdit - READ-ONLY QA (portable).
 
 Allow writes ONLY to:
-  - the project's auto-memory folder (so QA findings can be persisted), and
+  - the project's auto-memory folder (so QA findings can be persisted),
   - the harness self-config allow-globs (PROJECT-PROFILE.md, settings.json,
-    harness-config.json, .mcp.json) so /configure-project can run and re-run.
+    harness-config.json, .mcp.json) so /configure-project can run and re-run, and
+  - the team's OWNED repos listed in harness-config.json -> owned_repos (not QA targets).
 Block everything else - product source code, secrets, qa-evidence (use the
 filesystem MCP), anything. Fail-closed on malformed input."""
 import json
@@ -31,7 +32,7 @@ def main():
 
     cfg = hc.load()
     ti = data.get("tool_input", {}) or {}
-    target = ti.get("file_path") or ti.get("path") or ""
+    target = ti.get("file_path") or ti.get("path") or ti.get("notebook_path") or ""
     tnorm = hc.norm(target)
     if not tnorm:
         block("READ-ONLY QA: no file_path in tool input. Write/Edit blocked.")
@@ -40,7 +41,12 @@ def main():
     if hc.is_under(tnorm, cfg["memory_root"]):
         sys.exit(0)
 
-    # 2) allow the harness's own config files (project-relative globs)
+    # 2) allow the team's owned repos (folder names under the project root)
+    for name in cfg.get("owned_repos", []):
+        if hc.is_under(tnorm, hc.norm(os.path.join(cfg["project_root"], name))):
+            sys.exit(0)
+
+    # 3) allow the harness's own config files (project-relative globs)
     try:
         rel = os.path.relpath(tnorm, cfg["project_root"]).replace("\\", "/")
     except Exception:
@@ -50,9 +56,10 @@ def main():
             sys.exit(0)
 
     block(
-        "READ-ONLY QA: Write/Edit to '%s' is blocked. Allowed: the memory folder and the "
-        "harness config (PROJECT-PROFILE.md, settings.json, harness-config.json, .mcp.json). "
-        "Product code is read-only; use the filesystem MCP for qa-evidence attachments." % target
+        "READ-ONLY QA: Write/Edit to '%s' is blocked. Allowed: the memory folder, the owned repos "
+        "(harness-config.json -> owned_repos) and the harness config (PROJECT-PROFILE.md, settings.json, "
+        "harness-config.json, .mcp.json). Product code is read-only; use the filesystem MCP for "
+        "qa-evidence attachments." % target
     )
 
 

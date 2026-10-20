@@ -6,8 +6,16 @@
  * that is empty, it is derived from CLAUDE_PROJECT_DIR the same way Claude Code
  * encodes project dirs (replace ':','/','\\' with '-', lowercase the drive letter).
  *
- * When MEMORY.md exceeds MAX_SIZE_KB, archives index entries older than KEEP_DAYS
- * into <memory_root>/archives/ and moves the matching per-topic .md files alongside.
+ * When MEMORY.md exceeds MAX_SIZE_KB, archives index entries dated older than KEEP_DAYS
+ * into <memory_root>/archives/MEMORY-archive-YYYYMMDD.md and moves the matching
+ * per-topic .md files alongside.
+ *
+ * Entry shape recognized (bold / dash variants tolerated):
+ *   - [Title with date 2026-04-29](filename.md) — one-line hook
+ * Lines that don't match (headers, blanks, footers) are preserved verbatim. Entries with
+ * no parseable YYYY-MM-DD date in the title or hook are KEPT (fail-safe). The index is
+ * split on \r?\n so a CRLF file rotates too (a CRLF index once silently rotated nothing).
+ *
  * Always exits 0 with a JSON {"additionalContext": "..."} on stdout.
  */
 const fs = require('fs');
@@ -38,7 +46,7 @@ const ARCHIVE_DIR = path.join(MEMORY_DIR, 'archives');
 const MAX_SIZE_KB = 24;
 const KEEP_DAYS = 30;
 
-const ENTRY_RE = /^- \[([^\]]+)\]\(([^)]+)\) — (.+)$/;
+const ENTRY_RE = /^- (?:\*\*)?(?:[^\[]*?)\[([^\]]+)\]\(([^)]+)\)(?:\*\*)? ?[—-]? ?(.*)$/;
 const DATE_RE = /(20\d{2}-\d{2}-\d{2})/;
 
 function output(data) { console.log(JSON.stringify(data)); }
@@ -56,7 +64,7 @@ function run() {
   }
   try {
     const content = fs.readFileSync(MEMORY_FILE, 'utf8');
-    const lines = content.split('\n');
+    const lines = content.split(/\r?\n/);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - KEEP_DAYS);
     const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -72,11 +80,12 @@ function run() {
         keepLines.push(line);
       } else {
         archiveEntries.push(line);
+        // Only move actual topic files (skip paths with a slash — archives or external locations)
         if (filename.indexOf('/') === -1 && filename.endsWith('.md')) archiveFiles.push(filename);
       }
     }
     if (archiveEntries.length === 0) {
-      output({ additionalContext: 'Memory at ' + sizeKB + ' KB but all entries are within last ' + KEEP_DAYS + ' days. No rotation.' });
+      output({ additionalContext: 'Memory at ' + sizeKB + ' KB but all entries are within last ' + KEEP_DAYS + ' days. No rotation. Consider compressing index entries.' });
       return;
     }
     if (!fs.existsSync(ARCHIVE_DIR)) fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
@@ -102,7 +111,7 @@ function run() {
     const finalContent = content.endsWith('\n') ? (trimmed.endsWith('\n') ? trimmed : trimmed + '\n') : trimmed;
     fs.writeFileSync(MEMORY_FILE, finalContent);
     const newSize = (fs.statSync(MEMORY_FILE).size / 1024).toFixed(1);
-    output({ additionalContext: 'MEMORY ROTATED: ' + sizeKB + ' KB -> ' + newSize + ' KB. Archived ' + archiveEntries.length + ' index entries + ' + moved + ' topic files to archives/MEMORY-archive-' + ts + '.md' + (missing ? ' (' + missing + ' missing)' : '') + '.' });
+    output({ additionalContext: 'MEMORY ROTATED: ' + sizeKB + ' KB -> ' + newSize + ' KB. Archived ' + archiveEntries.length + ' index entries (older than ' + KEEP_DAYS + ' days) + ' + moved + ' topic files to archives/MEMORY-archive-' + ts + '.md' + (missing ? ' (' + missing + ' missing)' : '') + '.' });
   } catch (err) {
     output({ additionalContext: 'Memory rotation failed: ' + err.message + '. Manual pruning recommended.' });
   }

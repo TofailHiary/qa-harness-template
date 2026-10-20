@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample App</title>
+<style>
+  :root { --bg:#f6f7fb; --ink:#111827; --muted:#6b7280; --brand:#1d4ed8; --card:#ffffff; }
+  body { margin:0; font:18px/1.5 "Segoe UI", Arial, sans-serif; color:var(--ink); background:var(--bg); }
+  header { background:#0f172a; color:#fff; padding:14px 32px; display:flex; align-items:center; gap:24px; position:sticky; top:0; }
+  header nav a { color:#cbd5e1; margin-right:18px; text-decoration:none; }
+  header .who { margin-left:auto; color:#cbd5e1; }
+  main { max-width:1100px; margin:32px auto; padding:0 24px; }
+  .card { background:var(--card); border-radius:12px; padding:24px; box-shadow:0 2px 10px rgba(0,0,0,.06); margin-bottom:24px; }
+  label { display:block; margin:12px 0 4px; color:var(--muted); }
+  input, button, .combo { font:inherit; }
+  input { padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; width:320px; }
+  button { padding:10px 18px; border:0; border-radius:8px; background:var(--brand); color:#fff; cursor:pointer; }
+  button.secondary { background:#e5e7eb; color:var(--ink); }
+  button[disabled] { opacity:.5; cursor:not-allowed; }
+  .combo { position:relative; display:inline-block; }
+  .combo > [role=combobox] { padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; background:#fff; min-width:220px; text-align:left; color:var(--ink); }
+  .combo [role=listbox] { position:absolute; left:0; top:48px; background:#fff; border:1px solid #d1d5db; border-radius:8px; list-style:none; margin:0; padding:6px 0; min-width:220px; z-index:5; display:none; box-shadow:0 8px 24px rgba(0,0,0,.12); }
+  .combo [role=listbox].open { display:block; }
+  .combo [role=option] { padding:8px 14px; cursor:pointer; }
+  .combo [role=option]:hover { background:#eef2ff; }
+  .toast { position:fixed; top:70px; right:28px; background:#065f46; color:#fff; padding:12px 18px; border-radius:10px; display:none; }
+  .toast.show { display:block; }
+  .hidden { display:none; }
+  .stat { font-size:34px; font-weight:700; }
+  .row { display:flex; gap:24px; }
+  .row .card { flex:1; }
+  details summary { cursor:pointer; color:var(--brand); }
+  table { border-collapse:collapse; width:100%; }
+  td, th { text-align:left; padding:8px 6px; border-bottom:1px solid #eee; }
+</style>
+</head>
+<body>
+<header>
+  <strong>Sample App</strong>
+  <nav id="nav" class="hidden">
+    <a href="#dashboard" data-page="dashboard">Dashboard</a>
+    <a href="#settings" data-page="settings">Notification settings</a>
+  </nav>
+  <span class="who" id="who"></span>
+</header>
+<main>
+  <section id="page-login" class="card">
+    <h1>Log in</h1>
+    <form id="login-form">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="off" required>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="off" required>
+      <p><button type="submit">Log In</button></p>
+    </form>
+  </section>
+
+  <section id="page-dashboard" class="hidden">
+    <h1>Welcome, <span id="who-name"></span></h1>
+    <div class="row">
+      <div class="card"><div>Open orders</div><div class="stat" id="stat-orders">24</div></div>
+      <div class="card"><div>Notifications enabled</div><div class="stat" id="stat-notif">3 of 4</div></div>
+    </div>
+    <div class="card">
+      <h2>Recent orders</h2>
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>#1041</td><td>Example Org A</td><td>Shipped</td></tr>
+          <tr><td>#1042</td><td>Example Org B</td><td>Open</td></tr>
+          <tr><td>#1043</td><td>Example Org C</td><td>Open</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="page-settings" class="hidden">
+    <h1>Notification settings</h1>
+    <div class="card">
+      <label id="lbl-region">Region</label>
+      <div class="combo">
+        <button type="button" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lbl-region" id="region-btn">North</button>
+        <ul role="listbox" id="region-list" aria-labelledby="lbl-region">
+          <li role="option">North</li><li role="option">South</li><li role="option">East</li><li role="option">West</li>
+        </ul>
+      </div>
+      <h2 style="margin-top:28px">Channels</h2>
+      <p><label><input type="checkbox" name="ch" value="Email" checked> Email</label></p>
+      <p><label><input type="checkbox" name="ch" value="SMS" checked> SMS</label></p>
+      <p><label><input type="checkbox" name="ch" value="Push" checked> Push</label></p>
+      <p><label><input type="checkbox" name="ch" value="Digest"> Weekly digest</label></p>
+      <p id="count-line"><span id="count">3</span> of 4 channels enabled.</p>
+      <details id="advanced">
+        <summary role="button" aria-expanded="false">Show advanced options</summary>
+        <p><label><input type="checkbox" name="adv" value="quiet"> Quiet hours (22:00 – 07:00)</label></p>
+      </details>
+      <p style="margin-top:20px"><button id="save" disabled>Save Changes</button> <button id="discard" class="secondary" type="button">Discard Changes</button></p>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+  // A tiny stateful "app": any email/password logs in; settings live in memory for the session.
+  const state = { user: null, region: 'North', channels: ['Email','SMS','Push'], dirty: false };
+  const $ = (s) => document.querySelector(s);
+  function show(page) {
+    for (const p of ['login','dashboard','settings']) $('#page-' + p).classList.toggle('hidden', p !== page);
+    $('#nav').classList.toggle('hidden', !state.user);
+  }
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 4000); }
+  function refresh() {
+    const on = [...document.querySelectorAll('input[name=ch]:checked')].map((c) => c.value);
+    $('#count').textContent = on.length;
+    const dirty = on.join() !== state.channels.join() || $('#region-btn').textContent !== state.region;
+    state.dirty = dirty; $('#save').disabled = !dirty;
+  }
+  $('#login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = $('#email').value.trim();
+    state.user = { email, name: email.split('@')[0].replace(/\W+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'User', role: /admin/i.test(email) ? 'Admin' : 'User' };
+    $('#who').textContent = state.user.name + ' (' + state.user.role + ')';
+    $('#who-name').textContent = state.user.name;
+    $('#stat-notif').textContent = state.channels.length + ' of 4';
+    $('#page-settings').querySelectorAll('input[name=ch]').forEach((c) => { c.checked = state.channels.includes(c.value); });
+    $('#region-btn').textContent = state.region;
+    refresh();
+    location.hash = '#dashboard';
+  });
+  document.querySelectorAll('[data-page]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); location.hash = '#' + a.dataset.page; }));
+  window.addEventListener('hashchange', () => { const p = location.hash.slice(1) || 'login'; if (!state.user) return show('login'); show(p); if (p === 'dashboard') $('#stat-notif').textContent = state.channels.length + ' of 4'; });
+  // combobox
+  const btn = $('#region-btn'), list = $('#region-list');
+  btn.addEventListener('click', () => { const open = !list.classList.contains('open'); list.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); });
+  list.querySelectorAll('[role=option]').forEach((o) => o.addEventListener('click', () => { btn.textContent = o.textContent; list.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); refresh(); }));
+  document.querySelectorAll('input[name=ch]').forEach((c) => c.addEventListener('change', refresh));
+  $('#advanced').addEventListener('toggle', () => $('#advanced summary').setAttribute('aria-expanded', String($('#advanced').open)));
+  $('#save').addEventListener('click', () => {
+    state.channels = [...document.querySelectorAll('input[name=ch]:checked')].map((c) => c.value);
+    state.region = $('#region-btn').textContent;
+    refresh();
+    toast('Notification settings saved for region ' + state.region + '.');
+  });
+  $('#discard').addEventListener('click', () => {
+    document.querySelectorAll('input[name=ch]').forEach((c) => { c.checked = state.channels.includes(c.value); });
+    $('#region-btn').textContent = state.region; refresh();
+  });
+  show('login');
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "skill_name": "prompt-generator",
+  "evals": [
+    {
+      "id": 0,
+      "name": "bugfix-retest-prompt-app-412",
+      "prompt": "generate the full-qa prompt for APP-412. The order-export fix (PR #88) is supposed to be on Test and I need the re-test that moves the ticket to Ready for Release. Target Test. Do not change anything in the issue tracker without asking me. Another Claude Code session will run the prompt, so it must stand on its own.",
+      "expected_output": "One execution-ready prompt in bugfix mode that cites the live tracker state of APP-412 (status / assignee read now, not remembered), names the repo and target branch of PR #88 and its merge state, lists the changed files and their surfaces, the tables and fixtures involved (identifiers only), the prior-run evidence folders and known bugs, the project's read-only rules, the five canonical result values, the Execution Register + Evidence Ledger + confidence line, the evidence folder path, a Research Register with VERIFIED/INFERRED/UNKNOWN labels, issue creation marked NOT authorised, and a Run-with block deciding /goal and /loop with reasons. No passwords.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "pr-full-qa-prompt-bulk-invite-91",
+      "prompt": "prepare the execution prompt for a full QA on PR #91 (bulk invite of users to an account). I want to hand it to a fresh Claude Code session. Tell me in the prompt whether we need /goal or /loop and why.",
+      "expected_output": "One self-contained prompt for a full-mode run of PR #91: the repo(s) the PR lives in and its merge state, the frontend / backend / background-job surfaces it touches, the async chain (invite email or queue) and its terminal writer, the test accounts and roles by identifier, prior findings on the invite flow read live from the tracker as retest items, the project's gates and formats (canonical values, Execution Register, Evidence Ledger, confidence line, evidence folder), a Research Register with labels, and a Run-with block that recommends /goal with a checkable condition and states whether /loop applies.",
+      "files": []
+    }
+  ]
+}

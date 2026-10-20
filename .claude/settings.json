@@ -3,12 +3,12 @@
   "permissions": {
     "allow": [
       "Bash(git pull:*)",
+      "Bash(git fetch:*)",
       "Bash(git status:*)",
       "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(git diff:*)",
       "Bash(git show:*)",
-      "Bash(git fetch:*)",
       "Bash(git rev-parse:*)",
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_take_screenshot",
@@ -28,6 +28,7 @@
       "mcp__github__pull_request_read",
       "mcp__claude_ai_Atlassian__getJiraIssue",
       "mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql",
+      "mcp__claude_ai_Atlassian__getTransitionsForJiraIssue",
       "mcp__filesystem__read_text_file"
     ],
     "deny": [
@@ -39,24 +40,45 @@
       "Write(.env.*)",
       "Edit(.env)",
       "Edit(.env.*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(git checkout:*)",
-      "Bash(git reset --hard:*)",
       "Bash(rm -rf:*)",
       "mcp__github__add_comment_to_pending_review",
       "mcp__github__add_issue_comment",
+      "mcp__github__add_reply_to_pull_request_comment",
       "mcp__github__create_branch",
       "mcp__github__create_or_update_file",
-      "mcp__github__create_pull_request",
+      "mcp__github__create_repository",
       "mcp__github__delete_file",
+      "mcp__github__delete_repository",
+      "mcp__github__fork_repository",
+      "mcp__github__issue_write",
       "mcp__github__merge_pull_request",
+      "mcp__github__pull_request_review_write",
       "mcp__github__push_files",
-      "mcp__github__update_pull_request",
+      "mcp__github__request_copilot_review",
+      "mcp__github__sub_issue_write",
+      "mcp__github__update_pull_request_branch",
+      "mcp__ssh-manager__ssh_deploy",
+      "mcp__ssh-manager__ssh_upload",
+      "mcp__ssh-manager__ssh_db_import",
+      "mcp__ssh-manager__ssh_execute_sudo",
+      "mcp__ssh-manager__ssh_backup_restore",
+      "mcp__ssh-manager__ssh_hooks",
+      "mcp__ssh-manager__ssh_key_manage",
+      "mcp__ssh-manager__ssh_group_manage",
       "mcp__postman-api-mcp__createCollection",
-      "mcp__postman-api-mcp__deleteCollection",
+      "mcp__postman-api-mcp__createCollectionRequest",
       "mcp__postman-api-mcp__createEnvironment",
-      "mcp__postman-api-mcp__deleteEnvironment"
+      "mcp__postman-api-mcp__createWorkspace",
+      "mcp__postman-api-mcp__deleteCollection",
+      "mcp__postman-api-mcp__deleteCollectionRequest",
+      "mcp__postman-api-mcp__deleteEnvironment",
+      "mcp__postman-api-mcp__deleteWorkspace",
+      "mcp__postman-api-mcp__updateCollectionRequest",
+      "mcp__postman-api-mcp__updateCollectionFolder",
+      "mcp__postman-api-mcp__patchCollection",
+      "mcp__postman-api-mcp__putCollection",
+      "mcp__postman-api-mcp__patchEnvironment",
+      "mcp__postman-api-mcp__putEnvironment"
     ]
   },
   "hooks": {
@@ -84,6 +106,12 @@
         "hooks": [
           { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-powershell-writes.py\"" }
         ]
+      },
+      {
+        "matcher": "mcp__github__create_pull_request|mcp__github__update_pull_request",
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-github-writes.py\"" }
+        ]
       }
     ],
     "PostToolUse": [
@@ -96,13 +124,30 @@
     ],
     "SessionStart": [
       {
-        "matcher": "startup",
+        "matcher": "startup|resume|clear|compact",
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/memory-rotation.js\"" },
-          { "type": "command", "command": "echo '{\"additionalContext\": \"QA harness ready. If PROJECT-PROFILE.md is unconfigured, run /configure-project. Memory is on-demand for loading, mandatory for saving at end of task.\"}'" }
+          { "type": "command", "command": "echo '{\"additionalContext\": \"QA harness ready. If PROJECT-PROFILE.md is unconfigured, run /configure-project. Memory is on-demand for loading, mandatory for saving at end of task. Read .claude/skills/qa-standards/SKILL.md once per QA session.\"}'" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/completion-gate.py\"" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/completion-gate.py\"" }
         ]
       }
     ]
+  },
+  "env": {
+    "QA_GATE_ENFORCE": "0"
   },
   "autoMemoryEnabled": true,
   "teammateMode": "in-process"

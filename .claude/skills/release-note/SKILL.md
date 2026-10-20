@@ -1,7 +1,7 @@
 ---
 name: release-note
-description: Use when you need a stakeholder-ready release note for an application release — plain-business-language summary of the tickets/epics shipped, pulled from Jira (Atlassian MCP), a Jira export, manual input, or git history. Triggers include "write the release notes", "draft the release email", "summarize this sprint for leadership".
-argument-hint: "[release name, Jira filter, or details]"
+description: Use when you need a stakeholder-ready release note for an application release — a plain-business-language summary of the tickets/epics shipped, pulled from the issue tracker (Atlassian MCP), a tracker export, manual input, or git history. Triggers include "write the release notes", "draft the release email", "summarize this sprint for leadership".
+argument-hint: "[release name, tracker filter, or details]"
 disable-model-invocation: true
 allowed-tools: ["Read", "Grep", "Glob", "Bash", "AskUserQuestion", "mcp__claude_ai_Atlassian__*", "mcp__github__list_pull_requests", "mcp__github__list_commits", "mcp__github__pull_request_read", "mcp__github__get_file_contents", "mcp__github__search_code", "WebFetch"]
 effort: high
@@ -13,7 +13,8 @@ effort: high
 > `PROJECT-PROFILE.md` §2 (Capability Map). If that capability is `off`, STOP and tell the user:
 > "This project has no any of GitHub/LocalRepos configured, so `/release-note` is unavailable. Run
 > `/configure-project` to enable it." Do not call this skill's tools when gated off.
-
+> Jira (§2) is an optional enhancer: when it is `off`, Option A below is unavailable and the other
+> data sources are used.
 
 Generate a polished, stakeholder-ready release note. Output renders directly in chat as markdown.
 
@@ -28,10 +29,11 @@ This release note is written by a **Product Owner for stakeholders** (leadership
 
 ### ALWAYS include
 - What changed in **plain business language** (1-2 sentences per ticket)
-- Jira ticket IDs (e.g., KLV-1234) so readers can click through for details
+- Ticket IDs (pattern from `PROJECT-PROFILE.md §15`, e.g. APP-1234) so readers can click through for details
 - Bug fixes described by **what was broken and that it is fixed** -- user-visible impact
 - Feature descriptions focused on **what the user or system can now do**
 - Security fixes at a high level ("Fixed unauthorized access to X" -- no exploit steps)
+- **Who reported each solved ticket** (person + organization) when the tracker has a reporter / raised-by field or the originating thread names one; "internal" otherwise — so the fix can be fed back to the person who raised it
 - Known issues or operational recommendations
 - Summary counts and affected repositories
 
@@ -44,11 +46,12 @@ This release note is written by a **Product Owner for stakeholders** (leadership
 - CORS configs, cron internals, rate limit implementation details
 - Test case lists (TC-1, TC-2...)
 - ORM model details (Sequelize, Pydantic, etc.)
-- Console output, log samples, or CloudWatch references
-- Infrastructure details (Lambda configs, SQS, DynamoDB internals)
+- Console output, log samples, or cloud-logging references
+- Infrastructure details (Lambda configs, queue or NoSQL internals)
+- Credentials, account identifiers, or internal URLs
 
 ### Rule of thumb
-If a non-technical PM would need to Google a term to understand a bullet point, rewrite it in plain language. The Jira ticket link is where technical details live.
+If a non-technical PM would need to Google a term to understand a bullet point, rewrite it in plain language. The ticket link is where technical details live.
 
 ---
 
@@ -56,27 +59,27 @@ If a non-technical PM would need to Google a term to understand a bullet point, 
 
 Use AskUserQuestion FIRST to determine how the user wants to provide ticket data:
 
-### Option A: Jira (Atlassian MCP)
-If the user wants to pull from Jira directly:
-1. Try `mcp__claude_ai_Atlassian__authenticate` to start OAuth (complete with `mcp__claude_ai_Atlassian__complete_authentication` if prompted)
-2. Once authenticated, use the Atlassian MCP tools (`mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql`, `mcp__claude_ai_Atlassian__getJiraIssue`) to query tickets by sprint, JQL filter, label, or fix version
-3. Extract: ticket ID, summary, type, status, parent/epic, labels, sprint
+### Option A: Issue tracker (Atlassian MCP) — only when Jira is `on` (§2)
+If the user wants to pull from the tracker directly:
+1. The Atlassian MCP connector is pre-authenticated in this environment; if a call returns an auth error, tell the user to re-authorise the claude.ai Atlassian connector (it cannot be done from here) and fall back to Option B/C until then.
+2. Use the Atlassian MCP tools (`mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql`, `mcp__claude_ai_Atlassian__getJiraIssue`) to query tickets by sprint, JQL filter, label, or fix version; the project key and any custom fields (reporter / raised-by) come from `PROJECT-PROFILE.md §15`
+3. Extract: ticket ID, summary, type, status, parent/epic, labels, sprint, reporter / raised-by (person + organization)
 
-### Option B: Jira HTML/CSV Export
-If the user pastes or attaches a Jira export (HTML table, CSV, or text):
+### Option B: Tracker HTML/CSV Export
+If the user pastes or attaches a tracker export (HTML table, CSV, or text):
 1. Parse the export to extract ticket data
-2. Identify columns: Key, Summary, Type, Status, Sprint, Labels, Parent, Description
+2. Identify columns: Key, Summary, Type, Status, Sprint, Labels, Parent, Description, Reporter / Raised By
 
 ### Option C: Manual Input
 If the user provides ticket details directly:
-1. Accept a list of ticket IDs + descriptions
+1. Accept a list of ticket IDs + descriptions (+ who reported each, if known)
 2. Ask clarifying questions for grouping
 
 ### Option D: Git History Cross-Reference
 If the user wants to check for unreported changes:
-1. Use `mcp__github__list_commits` or Bash `git log` to find commits since the last release
-2. Extract ticket IDs from commit messages
-3. Flag any commits without a Jira ticket
+1. Use `mcp__github__list_commits` (GitHub `on`) or Bash `git log` in `<repo path: PROJECT-PROFILE.md §3>` (LocalRepos `on`) to find commits since the last release
+2. Extract ticket IDs (pattern from §15) from commit messages
+3. Flag any commits without a ticket
 
 Always ask the user which option they prefer. Multiple options can be combined.
 
@@ -88,13 +91,14 @@ After determining the data source, use AskUserQuestion to collect any MISSING in
 
 1. **Release metadata** -- Release date, sprint names, total issue count
 2. **Recipient** -- Who is the email addressed to?
-3. **Author** -- Who signs off? (defaults to "<user>")
+3. **Author** -- Who signs off? (defaults to the person running the skill — ask if unknown)
 4. **Coverage dates** -- "Since [last release date] till now"
 5. **In-progress items** -- Tickets started but NOT included?
 6. **Long-running epics** -- Epics from prior releases completing work this cycle?
 7. **Known issues or notes** -- Caveats, recommendations, known limitations?
-8. **Repositories affected** -- Which repos and branches?
-9. **Jira dashboard link** -- URL for detailed ticket views?
+8. **Repositories affected** -- Which repos and branches? (`PROJECT-PROFILE.md §3`)
+9. **Tracker dashboard link** -- URL for detailed ticket views?
+10. **Reporters** -- For each solved ticket, who raised it (person + organization), taken from the tracker's reporter / raised-by field or the originating email / chat thread; "internal" when it came from the team. Ask only for the ones the data source did not supply.
 
 Do NOT proceed to Phase 2 until you have enough data.
 
@@ -109,6 +113,7 @@ Do NOT proceed to Phase 2 until you have enough data.
 5. **Count totals** -- Completed vs in-progress
 6. **Map repositories** -- Which repos touched by which sections
 7. **Flag long-running epics** -- Created before current year? Add historical note
+8. **Map reporters** -- Attach "Reported by" to every solved ticket: person + organization, or "internal". Never invent a name; if the source does not say, write "internal" and flag it to the user in Phase 1 item 10.
 
 ### Writing Each Ticket Line
 
@@ -124,6 +129,11 @@ Bad examples (too technical -- rewrite these):
 - "WebSocket detect-error action with SVG-to-JPEG capture, adaptive compression"
 - "decryptData() crash on corrupt localStorage"
 - "Added utf8mb4 migration for audit_log table"
+
+Reported-by examples (synthetic):
+- "J. Example — Example Organization" (a customer contact named in the tracker's raised-by field)
+- "Support desk — Example Partner Ltd" (raised through a partner's support channel)
+- "internal" (found by the team or by QA)
 
 ---
 
@@ -153,14 +163,14 @@ I wanted to share the release notes for our [Month Year] release ahead of deploy
 
 #### [N]. [Feature Area Name] ([item count] items)
 
-**Epic:** [KLV-XXX] | **Label:** [LabelName]
+**Epic:** [APP-XXX] | **Label:** [LabelName]
 
 [1-2 sentence business description of this feature area.]
 
-| Ticket | Change |
-|--------|--------|
-| KLV-XXX | Plain-language description (1-2 sentences) |
-| KLV-XXX | Plain-language description |
+| Ticket | Change | Reported by |
+|--------|--------|-------------|
+| APP-XXX | Plain-language description (1-2 sentences) | J. Example — Example Organization |
+| APP-XXX | Plain-language description | internal |
 
 ---
 
@@ -172,7 +182,7 @@ I wanted to share the release notes for our [Month Year] release ahead of deploy
 
 | Ticket | Status | Description |
 |--------|--------|-------------|
-| KLV-XXX | [Status] | What it is + why not included |
+| APP-XXX | [Status] | What it is + why not included |
 
 ---
 
@@ -198,13 +208,13 @@ I wanted to share the release notes for our [Month Year] release ahead of deploy
 
 | Repository | Branch | Changes |
 |------------|--------|---------|
-| <legacy frontend repo: PROJECT-PROFILE.md §3> | <branch: PROJECT-PROFILE.md §3> | [feature areas, comma-separated] |
-| <frontend repo: PROJECT-PROFILE.md §3/§9> | <branch: PROJECT-PROFILE.md §3> | [feature areas — only when redesign-scope changes] |
+| <frontend repo: PROJECT-PROFILE.md §3/§9> | <branch: PROJECT-PROFILE.md §3> | [feature areas, comma-separated] |
 | <backend repo: PROJECT-PROFILE.md §3/§9> | <branch: PROJECT-PROFILE.md §3> | [feature areas] |
+| <admin / report / worker repos: PROJECT-PROFILE.md §3> | <branch: PROJECT-PROFILE.md §3> | [feature areas — only when touched] |
 
 ---
 
-**Detailed Jira link:** [URL]
+**Detailed tracker link:** [URL]
 
 Note that any ticket we have worked on from last release since [start date] till now I have added in this. Please let me know if you notice anything or need any further details.
 
@@ -215,7 +225,7 @@ Best regards,
 
 ## Formatting Rules
 
-1. Ticket tables: | Ticket | Change | or | Ticket | Feature | consistently
+1. Ticket tables: | Ticket | Change | Reported by | consistently (drop the third column only if the user explicitly does not want reporters named)
 2. 1-2 sentences per ticket in business language, past tense ("Added", "Fixed", "Updated")
 3. Epic references on section header line (Epic ID + Label)
 4. Item counts in section headers: "([N] items)"
@@ -223,6 +233,7 @@ Best regards,
 6. No code blocks around the release note output
 7. Horizontal rules (---) between major sections
 8. **ZERO technical jargon** -- if you write a file path, API endpoint, DB column, or code reference, STOP and rewrite in plain language
+9. Reported-by cells name the person and organization exactly as the tracker / thread gives them, or "internal" — never a guess
 
 ## Quality Checklist
 
@@ -231,13 +242,14 @@ Best regards,
 - [ ] Completed + In Progress = Grand Total
 - [ ] All repos listed in Repositories Affected
 - [ ] No ticket in more than one section
+- [ ] Every solved ticket has a Reported-by value (person + organization, or "internal")
 - [ ] Release Summary mentions top 3-5 themes
 - [ ] Email intro and closing included
-- [ ] ZERO technical details -- no commits, code, schemas, or endpoints
+- [ ] ZERO technical details -- no commits, code, schemas, endpoints, credentials or internal URLs
 
 ---
 
 ## Post-Output
 
-1. Ask the user if they want adjustments (reorder, reword, add/remove tickets)
-2. Offer to save to a file (via Bash heredoc to user-specified path)
+1. Ask the user if they want adjustments (reorder, reword, add/remove tickets, hide reporters)
+2. Offer to save to a file (via Bash heredoc to a user-specified path outside the product repos — the read-only hook blocks writes there)

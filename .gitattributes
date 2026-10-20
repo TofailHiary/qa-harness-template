@@ -1,0 +1,7 @@
+# Normalize line endings: the template is authored LF; checkouts on Windows keep LF for these files.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.webm binary
+*.wav binary

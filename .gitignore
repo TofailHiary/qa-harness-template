@@ -1,14 +1,20 @@
 # Recipient's filled, secret-bearing files — never commit
 .mcp.json
+scripts/private-patterns.json
 .env
 .env.*
 *.local.json
+*.new
 
 # Per-project runtime artifacts
 qa-evidence/
 .playwright-mcp/
+.claude/hooks/completion-gate.log
+.claude/skills/demo-creator/templates/out/
+.claude/skills/demo-creator/templates/*.mp4
 
-# Caches
+# Caches / installs
 .claude/hooks/__pycache__/
 **/__pycache__/
 node_modules/
+package-lock.json

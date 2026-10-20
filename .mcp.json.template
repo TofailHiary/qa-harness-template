@@ -1,5 +1,5 @@
 {
-  "//": "TEMPLATE. /configure-project copies this to .mcp.json, replaces ${PROJECT_ROOT} with this project's absolute path, sets disabled:true for servers whose capability is off in PROJECT-PROFILE.md §2, and leaves ${ENV_VAR} secrets to be supplied via environment variables (Claude Code expands them at runtime). NEVER commit a filled .mcp.json (see .gitignore). github + Atlassian/Jira are connector/global MCPs configured outside this file.",
+  "//": "TEMPLATE. /configure-project copies this to .mcp.json, replaces ${PROJECT_ROOT} with this project's absolute path, sets disabled:true for servers whose capability is off in PROJECT-PROFILE.md §2, and either writes the secret values you give it into the git-ignored .mcp.json or leaves the ${ENV_VAR} placeholders for you to export (Claude Code expands them at runtime). NEVER commit a filled .mcp.json (see .gitignore). GitHub and Atlassian/Jira are Claude Code connectors configured outside this file. A project-specific MCP server (PROJECT-PROFILE.md §14) and other DB engines (Postgres, Mongo, ...) are added here by /configure-project with your approval; packages change - confirm the npx package name when it proposes one.",
   "mcpServers": {
     "filesystem": {
       "command": "npx",

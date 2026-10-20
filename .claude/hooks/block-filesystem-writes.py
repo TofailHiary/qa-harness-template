@@ -3,8 +3,10 @@
 
 The filesystem MCP's own allowed_directories may be broad; this hook narrows it
 so the MCP can only write under the evidence folder (evidence_root from
-harness-config.json). Source code and everything else are denied."""
+harness-config.json) and the team's owned repos (owned_repos). Source code and
+everything else are denied."""
 import json
+import os
 import sys
 import harness_config as hc
 
@@ -15,6 +17,7 @@ def block(reason):
 
 
 def targets(ti):
+    # write_file / edit_file / create_directory use 'path'; move_file uses 'source' + 'destination'
     out = []
     for k in ("path", "destination", "source"):
         v = ti.get(k)
@@ -34,15 +37,17 @@ def main():
         return
 
     cfg = hc.load()
-    root = cfg["evidence_root"]
+    roots = [cfg["evidence_root"]] + [hc.norm(os.path.join(cfg["project_root"], n)) for n in cfg.get("owned_repos", [])]
     tlist = targets(data.get("tool_input", {}) or {})
     if not tlist:
         block("READ-ONLY QA: no path in filesystem tool input. Blocked.")
     for t in tlist:
-        if not hc.is_under(hc.norm(t), root):
+        tn = hc.norm(t)
+        if not any(hc.is_under(tn, r) for r in roots):
             block(
                 "READ-ONLY QA: filesystem MCP write to '%s' is blocked. Only the evidence folder "
-                "(%s) is permitted for the filesystem MCP; use the Write tool for memory files." % (t, root)
+                "(%s) and the owned repos are permitted for the filesystem MCP; use the Write tool "
+                "for memory files." % (t, cfg["evidence_root"])
             )
     sys.exit(0)
 
