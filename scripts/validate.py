@@ -547,6 +547,20 @@ def check_run_records_and_evals():
             ERR.append("missing: qa-standards/%s" % f)
 
 
+def check_license():
+    """The license must exist, be the same text in both places, and be linked from the README."""
+    root_l, inst_l = os.path.join(ROOT, "LICENSE"), os.path.join(ROOT, ".claude", "LICENSE")
+    if not os.path.exists(root_l):
+        ERR.append("LICENSE missing at the repository root (without it nobody may legally use the template)")
+        return
+    if not read(root_l).startswith("MIT License"):
+        WARN.append("LICENSE is not the MIT text the catalog declares")
+    if not os.path.exists(inst_l) or read(inst_l) != read(root_l):
+        ERR.append(".claude/LICENSE must be a byte-identical copy of LICENSE (it is installed into every project)")
+    if "[LICENSE](LICENSE)" not in read(os.path.join(ROOT, "README.md")):
+        ERR.append("README.md must link the license: [LICENSE](LICENSE)")
+
+
 def check_docs_consistency(catalog):
     p = os.path.join(ROOT, "docs", "capability-matrix.md")
     t = read(p) if os.path.exists(p) else ""
@@ -564,6 +578,8 @@ def profile_sections(skill):
 
 def check_installed():
     """Light checks for a project that has the harness installed."""
+    if not os.path.exists(os.path.join(ROOT, ".claude", "LICENSE")):
+        WARN.append(".claude/LICENSE missing: re-run the installer so the harness's license notice is present")
     for f in [".claude/CLAUDE.md", ".claude/PROJECT-PROFILE.md", ".claude/settings.json", ".claude/hooks/harness-config.json",
               ".claude/skills/qa-standards/SKILL.md"]:
         if not os.path.exists(os.path.join(ROOT, f)):
@@ -624,6 +640,7 @@ def main():
         check_guards_and_mcp()
         check_run_records_and_evals()
         check_docs_consistency(catalog)
+        check_license()
         check_catalog_doc(catalog, args.fix_catalog_doc)
     for w in WARN:
         print("WARN ", w)

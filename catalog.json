@@ -1,6 +1,7 @@
 {
   "name": "qa-harness-template",
-  "version": "2.1.0",
+  "version": "2.1.1",
+  "license": "MIT",
   "description": "Portable, self-configuring, read-only QA harness for AI coding agents (Claude Code native; other runtimes via AGENTS.md): 39 skills, 6 agents, 8 hooks, 7 rules, a system-map reference, a bundled HTTP MCP server, an installer and validators.",
   "install": {
     "project_level": "python scripts/install.py --target <project> --full   (or --skill <name>[,<name>] / --group <category>)",
@@ -11,6 +12,7 @@
     "description": "Always installed with any project-level install: the persona, the profile, the read-only hooks, the always-loaded rules, the references and the MCP template.",
     "files": [
       ".claude/CLAUDE.md",
+      ".claude/LICENSE",
       ".claude/PROJECT-PROFILE.md",
       ".claude/PROJECT-PROFILE.example.md",
       ".claude/settings.json",

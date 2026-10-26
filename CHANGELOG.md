@@ -2,6 +2,13 @@
 
 All notable changes to the QA harness template. Dates are ISO (YYYY-MM-DD).
 
+## 2.1.1 — 2026-10-26
+
+### Added
+- MIT license (`LICENSE`, GitHub's official template). A byte-identical copy at `.claude/LICENSE` is installed
+  with every project-level install, so each installed copy carries the notice the license requires.
+- README: License section. Validator: both license files exist, are identical, and the README links them.
+
 ## 2.1.0 — 2026-10-26
 
 Implements `docs/maintainers/enhancement-backlog-2026-10-26.md`. Measured before/after:

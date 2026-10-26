@@ -73,6 +73,7 @@ Generated from `catalog.json` by `python scripts/validate.py --fix-catalog-doc`.
 ## Core files (installed with every project-level install)
 
 - `.claude/CLAUDE.md`
+- `.claude/LICENSE`
 - `.claude/PROJECT-PROFILE.md`
 - `.claude/PROJECT-PROFILE.example.md`
 - `.claude/settings.json`

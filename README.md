@@ -176,3 +176,7 @@ GitHub/Jira are optional connectors. The demo creator additionally
 needs Playwright (installed into your project by its `setup.js`), ffmpeg and a TTS engine. Note:
 Claude Code shows a one-time trust prompt for project MCP servers, and newly added servers connect after
 a restart — these two steps are yours.
+
+## License
+MIT. See [LICENSE](LICENSE). Every project install also gets a copy at `.claude/LICENSE`, so the
+notice travels with the harness into each project that uses it.
