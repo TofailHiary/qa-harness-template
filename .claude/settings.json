@@ -34,6 +34,7 @@
     "deny": [
       "Read(.env)",
       "Read(.env.*)",
+      "Read(.mcp.json)",
       "Read(**/secrets/**)",
       "Read(**/.git/config)",
       "Write(.env)",
@@ -84,33 +85,33 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|NotebookEdit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-writes.py\"" }
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-hook.sh\" block-writes.py" }
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-bash-writes.py\"" }
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-hook.sh\" block-bash-writes.py" }
         ]
       },
       {
         "matcher": "mcp__filesystem__write_file|mcp__filesystem__edit_file|mcp__filesystem__move_file|mcp__filesystem__create_directory",
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-filesystem-writes.py\"" }
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-hook.sh\" block-filesystem-writes.py" }
         ]
       },
       {
         "matcher": "PowerShell",
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-powershell-writes.py\"" }
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-hook.sh\" block-powershell-writes.py" }
         ]
       },
       {
         "matcher": "mcp__github__create_pull_request|mcp__github__update_pull_request",
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-github-writes.py\"" }
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-hook.sh\" block-github-writes.py" }
         ]
       }
     ],
@@ -134,14 +135,14 @@
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/completion-gate.py\"" }
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-hook.sh\" completion-gate.py --fail-open" }
         ]
       }
     ],
     "SubagentStop": [
       {
         "hooks": [
-          { "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/completion-gate.py\"" }
+          { "type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-hook.sh\" completion-gate.py --fail-open" }
         ]
       }
     ]

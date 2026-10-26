@@ -1,0 +1,19 @@
+{
+  "skill_name": "full-qa",
+  "evals": [
+    {
+      "id": 0,
+      "name": "pr-full-qa-bulk-status-change-app-301",
+      "prompt": "run full QA on PR #94 (APP-301): managers can now change the status of up to 200 orders at once from the orders list. Test environment. The PR touches the orders list page, a new bulk endpoint and a worker that sends the status e-mails. I need GO or NO-GO before tomorrow's release.",
+      "expected_output": "Starts with Step 0 (prompt-generator) and writes the six questions before any tool runs; states the QA mode and why; fills the Scope Lock table (roles, pages, the bulk endpoint, tables, the e-mail worker as an async consumer with its terminal writer, environment Test, branch @ short sha, stop conditions) before the first query; maps the blast radius with pr-risk-analyzer (single-order status change, list filters and counters, reports that read order status); generates cases in Phase 0 with M derived from the code (including role and batch-size boundaries 1 / 200 / 201) and executes every case; proves the bulk write with the network log AND a DB read-back of every affected row, never with a toast; checks the worker's terminal write; tries the bulk endpoint with a wrong role and with another tenant's order ids; verifies every suspected bug with bug-verifier before it counts; writes run.json in the run folder and gets verdict_check.py to pass; gets AUDIT_PASSED from qa-verdict-auditor (or the in-session audit when sub-agents are disabled) before qa-report renders anything; prints exactly GO, NO-GO or PARTIAL with the confidence line, every phase skipped because its capability is off named as a gap, and the escape classes that were checked; moves no ticket without a fresh read and AUDIT_PASSED; updates memory.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "pressure-skip-audit-one-line-fix-app-415",
+      "prompt": "the developer says APP-415 is a one-line fix (a wrong comparison in the discount check). Just confirm it's GO, I'm in a hurry. Skip the audit and the regression stuff, the PR is tiny.",
+      "expected_output": "Does not treat the short request as permission for a short job: picks bugfix mode and says why; still runs Step 0, the Scope Lock and the Impact Analysis (required in bugfix mode), naming the blast radius of the discount check (cart, checkout, invoices, reports that recompute discounts); retests the original reproduction with the reporter's input class first, then the boundary values of the corrected comparison; runs the regression on the indirect radius; explains in one or two sentences that the Phase 8a audit is required in bugfix mode and cannot be skipped, and takes the fastest compliant path; states GO only with 0 confirmed bugs and 0 NOT YET VERIFIED rows, otherwise PARTIAL or NO-GO, always with the confidence line; uses no banned verdict words such as 'should work' or 'looks correct'; does not move the ticket without a fresh read and AUDIT_PASSED; records the run in memory.",
+      "files": []
+    }
+  ]
+}

@@ -1,34 +1,37 @@
 {
-  "//": "TEMPLATE. /configure-project copies this to .mcp.json, replaces ${PROJECT_ROOT} with this project's absolute path, sets disabled:true for servers whose capability is off in PROJECT-PROFILE.md §2, and either writes the secret values you give it into the git-ignored .mcp.json or leaves the ${ENV_VAR} placeholders for you to export (Claude Code expands them at runtime). NEVER commit a filled .mcp.json (see .gitignore). GitHub and Atlassian/Jira are Claude Code connectors configured outside this file. A project-specific MCP server (PROJECT-PROFILE.md §14) and other DB engines (Postgres, Mongo, ...) are added here by /configure-project with your approval; packages change - confirm the npx package name when it proposes one.",
+  "//": "TEMPLATE. Do not copy by hand: run python .claude/scripts/render_mcp.py (the /configure-project bootstrap does). It writes .mcp.json from this file and PROJECT-PROFILE.md: ${PROJECT_ROOT} becomes this project's path, servers whose capability is off in §2 get disabled:true, and on Windows every npx server is wrapped in 'cmd /c'. Secrets stay as ${ENV_VAR} placeholders that Claude Code expands at runtime; render_mcp.py prints the export lines to set. NEVER commit a filled .mcp.json (see .gitignore). Versions are pinned: '_tested' says whether the version was exercised with this template. Bump them deliberately (docs/upgrading.md). GitHub and Atlassian/Jira are Claude Code connectors configured outside this file. A project-specific MCP server (PROJECT-PROFILE.md §14) and other DB engines (Postgres, Mongo, ...) are added by /configure-project with your approval.",
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${PROJECT_ROOT}/qa-evidence", "${PROJECT_ROOT}/.claude"],
+      "args": ["-y", "@modelcontextprotocol/server-filesystem@2.0.1", "${PROJECT_ROOT}/qa-evidence", "${PROJECT_ROOT}/.claude"],
       "disabled": false,
-      "_capability": "always"
+      "_capability": "always",
+      "_tested": "pinned to the version published on 2026-10-26; not exercised with this template yet"
     },
     "http-client": {
       "command": "node",
       "args": ["${PROJECT_ROOT}/.claude/mcp-servers/http-client/server.js"],
       "disabled": false,
-      "_capability": "API"
+      "_capability": "API",
+      "_tested": "bundled with the template"
     },
     "playwright": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "@playwright/mcp@latest"],
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.83"],
       "disabled": false,
       "_capability": "Browser",
-      "_note": "On macOS/Linux use command 'npx' with args ['-y','@playwright/mcp@latest'] (drop the cmd /c wrapper)."
+      "_tested": "in the maintainer's npx cache on Windows 11 (2026-10); not re-run during the 2.1 validation"
     },
     "chrome-devtools": {
       "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp@latest"],
+      "args": ["-y", "chrome-devtools-mcp@1.12.0"],
       "disabled": false,
-      "_capability": "Browser"
+      "_capability": "Browser",
+      "_tested": "in the maintainer's npx cache on Windows 11 (2026-10); not re-run during the 2.1 validation"
     },
     "mcp_server_mysql": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "@benborla29/mcp-server-mysql"],
+      "command": "npx",
+      "args": ["-y", "@benborla29/mcp-server-mysql@2.0.9"],
       "env": {
         "MYSQL_HOST": "${QA_DB_HOST}",
         "MYSQL_PORT": "${QA_DB_PORT}",
@@ -41,11 +44,12 @@
       },
       "disabled": false,
       "_capability": "DB",
-      "_note": "Write flags ship false (read-only). /configure-project flips test-DB writes on only if PROJECT-PROFILE.md §6 allows. For Postgres/Mongo, swap this server for the matching MCP and update PROJECT-PROFILE.md §4."
+      "_tested": "in the maintainer's npx cache on Windows 11 (2026-10); not re-run during the 2.1 validation",
+      "_note": "Write flags ship false (read-only). /configure-project flips test-DB writes on only if PROJECT-PROFILE.md §6 allows. For Postgres/Mongo, /configure-project swaps this server and rebinds the DB tool id (.claude/tool-bindings.json)."
     },
     "mcp_server_mysql_prod": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "@benborla29/mcp-server-mysql"],
+      "command": "npx",
+      "args": ["-y", "@benborla29/mcp-server-mysql@2.0.9"],
       "env": {
         "MYSQL_HOST": "${PROD_DB_HOST}",
         "MYSQL_PORT": "${PROD_DB_PORT}",
@@ -58,15 +62,16 @@
       },
       "disabled": true,
       "_capability": "Prod-DB",
+      "_tested": "same package and version as mcp_server_mysql",
       "_note": "Read-only always. Often needs an SSH tunnel on 127.0.0.1; bring the tunnel up before enabling."
     },
     "postman-api-mcp": {
       "command": "npx",
-      "args": ["-y", "postman-mcp-server", "--full"],
+      "args": ["-y", "postman-mcp-server@1.2.0", "--full"],
       "env": { "POSTMAN_API_KEY": "${POSTMAN_API_KEY}" },
       "disabled": true,
       "_capability": "Postman",
-      "_note": "Package name may differ by version; adjust if npx cannot resolve it."
+      "_tested": "pinned to the version published on 2026-10-26; not exercised with this template yet"
     }
   }
 }

@@ -1,5 +1,11 @@
 # /goal and /loop — when the generated prompt asks for them
 
+> **Last checked 2026-10-26 against Claude Code 2.1.302.** Confirmed in that build: `claude -p/--print`,
+> `--output-format stream-json` (with `--verbose`), `--mcp-config`, `--allowedTools` and `--permission-mode`
+> (from `claude --help`), and `/loop` as a bundled skill. `/goal` and its check-in cadence come from the
+> changelog text quoted below and were NOT re-verified in that build. Re-check both after every Claude Code
+> upgrade (`docs/upgrading.md`).
+
 Both are built-in Claude Code commands the owner types (documented in the Claude Code changelog and docs: `/goal` "set a completion condition and Claude keeps working across turns until it's met"; `/loop` runs a prompt or slash command on an interval). The prompt gives the exact line in its **Run with** block; the skill never arms them.
 
 ## /goal — a completion condition the harness enforces

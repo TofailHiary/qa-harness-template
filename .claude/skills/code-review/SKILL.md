@@ -176,7 +176,7 @@ Classify each issue's layer (FE / BE / Admin / Report / DB / Both) per qa-standa
 - **CHANGES REQUESTED** — issues must be fixed (always the result for a symptom patch)
 - **NEEDS DISCUSSION** — architectural concerns require team input
 
-**Mapping into the central contract (qa-standards -> Verdict Contract).** When this review feeds an orchestrator (`full-qa`, `release-check`) or the memory file, the canonical word prints first and the review alias follows in parentheses: APPROVED -> **GO (APPROVED)**; CHANGES REQUESTED -> **NO-GO (CHANGES REQUESTED)**; NEEDS DISCUSSION -> **PARTIAL (NEEDS DISCUSSION)** with the open question named as the blocker. Add the confidence line: `Verified N of M in-scope files; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: <one line or "none">`.
+**Mapping into the central contract (qa-standards -> Verdict Contract).** When this review feeds an orchestrator (`full-qa`, `release-check`) or the memory file, the canonical word prints first and the review alias follows in parentheses: APPROVED -> **GO (APPROVED)**; CHANGES REQUESTED -> **NO-GO (CHANGES REQUESTED)**; NEEDS DISCUSSION -> **PARTIAL (NEEDS DISCUSSION)** with the open question named as the blocker. Add the confidence line: `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: <one line or "none">` (an area here is one reviewed file).
 
 State coverage gaps explicitly — an unreviewed dependent is never an implied APPROVE.
 
@@ -197,4 +197,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the PR/file path/symbol/symptom; UPDATE an existing entry instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
 4. **Content:** PR/feature + date, verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**; the review alias may follow in parentheses), issues (`path:line`, severity, layer, NEW/DUPLICATE), files reviewed + blast-radius files, Root-Cause Check result for bug fixes, latent-pattern hits handed to `latent-pattern-sweep`, regression risks for next time, any prior memory this run disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

@@ -21,6 +21,12 @@ Generate a polished, stakeholder-ready release note. Output renders directly in 
 ## ARGUMENTS
 $ARGUMENTS
 
+## If no arguments provided
+Ask, then STOP until answered:
+> "Which release (version, tag or date range) and which audience (end users / internal / both)?"
+
+Do not guess the scope.
+
 ---
 
 ## Tone and Audience Rules (MANDATORY)
@@ -253,3 +259,13 @@ Best regards,
 
 1. Ask the user if they want adjustments (reorder, reword, add/remove tickets, hide reporters)
 2. Offer to save to a file (via Bash heredoc to a user-specified path outside the product repos — the read-only hook blocks writes there)
+
+## Post-Session (MANDATORY — enforced)
+
+Update auto-memory before claiming completion — full ritual in qa-standards -> Memory Ritual. If it cannot be persisted -> **HALT and tell the user**; never report success.
+
+1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool; grep the folder first and UPDATE an existing entry instead of filing a duplicate.
+2. **Update** `MEMORY.md` with a one-line (<=200-char) dated pointer.
+3. **Content:** release id + date, the tickets / PRs covered, anything left out of the note and why.
+4. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows a non-zero size, else HALT.

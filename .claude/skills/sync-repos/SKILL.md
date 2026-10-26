@@ -90,4 +90,6 @@ Return the list `<repo>: <branch> @ <short sha>` to the calling skill — it goe
 ---
 
 ## Post-Session (light — qa-standards -> Memory Ritual)
+- **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 Write memory only when something durable changed: a new repo in play, a branch rename, a clone quirk (username-prefixed remote, blocked SSH), a repo found on the wrong branch by design. Cross-reference first and UPDATE the existing entry under `<memory folder: PROJECT-PROFILE.md §12>` (`reference_repos_<slug>.md`) instead of filing a duplicate; then `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT and tell the user. A routine "all up to date" run needs no memory write — say so.
+

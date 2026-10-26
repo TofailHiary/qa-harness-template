@@ -68,14 +68,23 @@ policy knobs and plugin availability live in `PROJECT-PROFILE.md` (§1–§18). 
 in skills. The project's verified system map is `.claude/references/system-map.md`.
 
 ## Hooks
-Read-only QA is enforced by `.claude/hooks/` (portable; configured by `harness-config.json`):
-- **PreToolUse Write/Edit** → `block-writes.py`: only the memory folder, the harness config files and
-  the owned repos (`harness-config.json → owned_repos`) are writable.
+Read-only QA is enforced by `.claude/hooks/` (portable; configured by `harness-config.json`). Every Python
+hook is launched through `run-hook.sh`, which finds a working Python 3 and **fails closed**: a guard that
+cannot run blocks the tool call with a reason instead of silently allowing it. `python .claude/scripts/doctor.py`
+checks the machine and drives every guard with a forbidden and an allowed action.
+- **PreToolUse Write/Edit/MultiEdit** → `block-writes.py`: only the memory folder, the harness config files
+  and the owned repos (`harness-config.json → owned_repos`) are writable. `settings.json` and
+  `harness-config.json` are checked by CONTENT: a change that loosens the guards (drop a guard hook, add an
+  owned repo, remove a protected repo or a deny rule, widen the allow-globs) is blocked unless a human
+  started Claude Code with `QA_HARNESS_ADMIN=1`. Never look for a way around that; ask the user.
 - **PreToolUse Bash / PowerShell** → `block-bash-writes.py` / `block-powershell-writes.py`: git is an
   allow-list of read-only verbs (fetch/pull allowed for `/sync-repos`); npm publish/version/ci refused;
   any write into a protected repo refused (redirects, tee, sed -i, cp/mv, interpreter writes, cwd-aware).
-  Owned repos are exempt when no protected repo is in reach. `.claude/` itself is NOT a protected repo:
-  a Bash heredoc or PowerShell here-string is the sanctioned route for harness maintenance.
+  Owned repos are exempt when no protected repo is in reach. Opaque execution (`base64 -d | sh`, computed
+  `eval` / `Invoke-Expression`, `-EncodedCommand`) is refused. `.claude/` itself is NOT a protected repo: a
+  Bash heredoc or PowerShell here-string is the sanctioned route for skill / rule / doc maintenance. The
+  GUARD SURFACE (`.claude/hooks/**`, `.claude/settings*.json`) cannot be written from a shell unless a human
+  started the session with `QA_HARNESS_ADMIN=1`.
 - **PreToolUse filesystem MCP writes** → `block-filesystem-writes.py`: evidence folder + owned repos only.
 - **PreToolUse GitHub PR create/update** → `block-github-writes.py`: owned repos only.
 - **PostToolUse Playwright screenshot** → `copy-screenshot-evidence.sh`: backstop that moves stray PNGs
@@ -89,8 +98,9 @@ Hook changes are qualified with `python scripts/hook-redteam/runner.py` (from th
 
 ## Evidence
 Attachments only, one folder per run: `qa-evidence/<TICKET-KEY or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/`,
-files prefixed with the finding id. No index files, no bug-report markdown — findings live in the chat
-and the tracker. Write attachments with the filesystem MCP or a Bash heredoc (Write/Edit are
+files prefixed with the finding id — plus the run record `run.json` (register, ledger, verdict; checked by
+`.claude/skills/qa-standards/scripts/verdict_check.py`) and the auditor's `package.md`. No other index files,
+no bug-report markdown — findings live in the chat and the tracker. Write attachments with the filesystem MCP or a Bash heredoc (Write/Edit are
 hook-blocked there). When handing evidence over, give one full absolute folder path.
 
 ## Plugins (optional, `PROJECT-PROFILE.md` §17)

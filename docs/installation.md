@@ -63,6 +63,16 @@ scoped. A skill installed this way still reads `PROJECT-PROFILE.md` from the pro
 project has none, the skill's capability gate tells you to run `/configure-project` (which needs the
 project-level core).
 
+## 5. Another agent runtime (Codex, OpenCode, Cline, Kilo Code)
+
+```bash
+python scripts/install.py --target /path/to/project --full --runtime codex     # or opencode / cline / kilo
+```
+The harness is installed in its normal layout, then the adapter adds what that runtime needs: its MCP
+config generated from `.mcp.json.template` and your profile, its strongest read-only policy, and pointer
+skills where the runtime does not read `.claude/skills`. It prints what that runtime enforces and what stays
+advisory (the Claude Code hooks never run there). Details per runtime: `AGENTS.md` -> Per-runtime wiring.
+
 ## Preservation during install and upgrade
 
 The installer never overwrites `.claude/PROJECT-PROFILE.md`, `.claude/settings.json`,
@@ -84,6 +94,7 @@ overwrites the preserved files too. See [upgrading.md](upgrading.md).
 ## Verifying an install
 
 ```bash
+python .claude/scripts/doctor.py              # first: machine, hook wiring, a live probe of every guard -> READY
 python scripts/validate.py --installed        # inside the project: hooks compile, settings wired, .mcp.json generated
 python scripts/hook-redteam/runner.py --hooks /path/to/your/project/.claude/hooks   # the guards behave
 ```

@@ -1,6 +1,6 @@
 ---
 name: bug-report
-description: Use when documenting a CONFIRMED bug found during testing (verify with /bug-verifier first) — produces the standard report with layer classification, a why-is-this-a-bug justification, severity, reproduction, and evidence. Triggers include "write up this bug", "file a bug report", documenting a NO-GO finding.
+description: Use when a CONFIRMED bug (verified with /bug-verifier) must be written up with its layer, why it is a bug, severity, reproduction and evidence. Triggers include "write up this bug", "file a bug report", documenting a NO-GO finding.
 argument-hint: "bug description"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(bug-verifier)", "Write"]
 ---
@@ -10,11 +10,23 @@ allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_qu
 Generate a bug report in the standard format. Output must render cleanly as markdown in chat — no ASCII art, no code-block wrapper around the report itself.
 
 > **Capability note:** this skill is **always on** (utility — see `docs/capability-matrix.md`). The Pre-Report Investigation uses only the layers enabled in `PROJECT-PROFILE.md` §2; a layer whose capability is `off` is recorded as "not checked (capability off)" in the Bug Classification table, never inferred. Filing to the tracker needs Jira `on` (§2) and the rules in §15.
+>
+> **No profile at all? (user-level install - there is no `.claude/PROJECT-PROFILE.md`.)** Do not stop.
+> Ask once for what this skill needs - the confirmed evidence (or the statement that it is unconfirmed), the product layers (FE / BE / admin / reports) and the tracker's bug format - label every conclusion that rests on those
+> answers INFERRED, skip the steps whose tools are not available and say which, and if no memory
+> folder exists say in one line that memory was not persisted. A profile that EXISTS but is blank still
+> means: run `/configure-project`.
 
 Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once per session (Evidence Ledger, Evidence provenance, Bug Classification, Verdict Contract, Memory Ritual).
 
 ## ARGUMENTS
 $ARGUMENTS
+
+## If no arguments provided
+Ask, then STOP until answered:
+> "Which CONFIRMED bug should I write up? Give the bug-verifier result (or the finding id and its evidence folder)."
+
+Do not guess the scope.
 
 ## Gate: verify before you report
 A bug must be CONFIRMED before it gets a report. If it has not been through `Skill(bug-verifier)` (reproduced, cross-layer checked, alternatives eliminated, finding verdict **CONFIRMED BUG**), run that first. A **DUPLICATE** verdict updates the existing entry / ticket instead of producing a new report. **No reproduction = no confirmed bug** (qa-standards). A report without an Evidence Ledger row per claim is incomplete.
@@ -178,4 +190,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the endpoint / file path / user ID / symptom; if an entry covers this root cause, **UPDATE it** with today's reproduction instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** bug ID + title + date, severity, layer, NEW/DUPLICATE, tracker key if filed, test data (IDs / account identifiers — never passwords), root-cause `path:line`, regression risk, any prior memory disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

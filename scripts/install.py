@@ -8,6 +8,7 @@ Usage (run from anywhere; the template root is the parent of this scripts/ folde
   python scripts/install.py --user --skill explainer          # user-level: ~/.claude/skills only
   python scripts/install.py --target <project-root> --skill db-check --dry-run
   python scripts/install.py --list
+  python scripts/install.py --target <project-root> --full --runtime codex   # also wire Codex / OpenCode / Cline / Kilo
 
 What "with dependencies" means for a project-level install:
   * the CORE (CLAUDE.md, PROJECT-PROFILE.md, settings.json, hooks, rules, references, MCP template, docs)
@@ -17,16 +18,20 @@ What "with dependencies" means for a project-level install:
     catalog.json), plus qa-standards.
 A user-level install copies skills only (no hooks, no rules, no agents - those are project scoped).
 
-Preservation rules: an existing PROJECT-PROFILE.md, settings.json, harness-config.json, .mcp.json,
-.gitignore and .gitattributes are NEVER overwritten; the template version is written next to them as
+Preservation rules: an existing PROJECT-PROFILE.md, settings.json, harness-config.json, tool-bindings.json,
+.mcp.json, .gitignore and .gitattributes are NEVER overwritten; the template version is written next to them as
 <name>.new so you can merge by hand. Everything else is overwritten (use --dry-run to see the plan).
 The installer never reads or copies anything outside the template root.
+
+After copying, a project-level install re-applies .claude/tool-bindings.json (python .claude/scripts/rebind.py
+--apply), so an upgrade never silently reverts a DB-tool rebinding made by /configure-project.
 """
 import argparse
 import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -156,6 +161,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="print the plan, copy nothing")
     ap.add_argument("--force", action="store_true", help="overwrite preserved config files too (writes no *.new)")
     ap.add_argument("--list", action="store_true", help="list skills, groups and agents")
+    ap.add_argument("--runtime", choices=["claude", "codex", "opencode", "cline", "kilo"], default="claude",
+                    help="also write what another agent runtime needs (scripts/runtime_adapters.py); default claude")
     args = ap.parse_args()
 
     catalog = load_catalog()
@@ -171,6 +178,8 @@ def main():
             print("  %-22s %s (%s)" % (name, meta["file"], meta["capability"]))
         return
 
+    if args.user and args.runtime != "claude":
+        sys.exit("--runtime needs a project-level install (--target)")
     if args.user:
         dest_root = os.path.join(os.path.expanduser("~"), ".claude")
         if args.full or args.group:
@@ -217,9 +226,21 @@ def main():
         os.makedirs(os.path.dirname(target), exist_ok=True)
         shutil.copyfile(src, target)
     print("Done: %d copied, %d preserved%s." % (copied, kept, " (dry run)" if args.dry_run else ""))
+    if not args.user and args.runtime != "claude":
+        sys.path.insert(0, HERE)
+        import runtime_adapters
+        runtime_adapters.apply(args.runtime, dest_root, skills, dry=args.dry_run)
     if not args.user and not args.dry_run:
+        rb = os.path.join(dest_root, ".claude", "scripts", "rebind.py")
+        if os.path.exists(rb):
+            r = subprocess.run([sys.executable, rb, "--apply"], capture_output=True, text=True)
+            last = (r.stdout or r.stderr or "").strip().splitlines()
+            print("Tool bindings: %s" % (last[-1] if last else "applied"))
+            if r.returncode != 0:
+                print("  WARNING: rebind.py exited %d - run it by hand: python .claude/scripts/rebind.py --check" % r.returncode)
         print("\nNext: open Claude Code in %s and say \"Read SETUP.md and configure this QA harness for my project.\"" % dest_root)
         print("      Review any *.new files next to preserved config and merge what you need.")
+        print("      Check the machine and the guards: python .claude/scripts/doctor.py")
 
 
 if __name__ == "__main__":

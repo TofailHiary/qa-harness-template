@@ -32,6 +32,9 @@ Every skill checks `PROJECT-PROFILE.md` §2 (Capability Map) before doing anythi
 | `latent-pattern-sweep` | required: **any[DB, Prod-DB]** + **any[GitHub, LocalRepos]** |
 | `prod-sentinel` | required: **Prod-DB** (read-only) |
 | `demo-creator` | required: **Demo** (Node + Playwright + ffmpeg + TTS; `setup.js --check` prints READY) |
+| `api-contract-check` | required: **API** (Postman optional - a contract file is enough) |
+| `data-migration-check` | required: **DB** + **any[GitHub, LocalRepos]** (Prod-DB optional for the pre-flight counts; never runs a migration) |
+| `i18n-check` | required: **Browser** |
 | `qa-standards` | always on (shared module) |
 | `env-health` | always on (probes only enabled capabilities; release radar needs Jira, sentinel needs Prod-DB) |
 | `prompt-generator` | always on (utility — each research row degrades to "not available: <capability> off") |
@@ -67,3 +70,10 @@ for example: *"This project has no Browser configured, so `/browser-test` is una
 Orchestrators (`full-qa`, etc.) read §2 and skip whole phases: no Browser → skip UI/E2E/visual/a11y;
 no DB → skip db-check and data-consistency; no GitHub/LocalRepos → skip code-review/pr-risk. Skipped
 phases are stated explicitly in the verdict as coverage gaps — never an implied PASS.
+
+## Mobile
+
+`Mobile` is a capability flag in `PROJECT-PROFILE.md §2` with **no skill yet**: native iOS / Android apps are
+out of scope today. A `mobile-test` skill is added only when a maintainer can validate it against a
+device or emulator MCP server; until then a mobile-only surface is a named coverage gap in every run that
+touches it, never an implied PASS.

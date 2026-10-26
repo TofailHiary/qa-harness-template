@@ -1,0 +1,169 @@
+{
+  "schema": "qa-run/1",
+  "run_id": "APP-123-20261026",
+  "skill": "full-qa",
+  "mode": "targeted",
+  "subject": "APP-123 order export (fixture)",
+  "env": "TEST",
+  "commits": {
+    "app-backend": "main @ 1a2b3c4"
+  },
+  "verdict_policy": "strict-binary",
+  "started_at": "2026-10-26T09:00:00Z",
+  "updated_at": "2026-10-26T11:40:00Z",
+  "scope": {
+    "in": [
+      "export endpoint",
+      "export button"
+    ],
+    "out": [
+      {
+        "item": "PDF export",
+        "reason": "not changed by the PR (diff touches csv only)"
+      }
+    ],
+    "ac_source": "APP-123 description, AC 1-3"
+  },
+  "matrix": {
+    "source": "test-cases-generator Step 1b",
+    "dimensions": {
+      "role": [
+        "admin",
+        "user"
+      ],
+      "format": [
+        "csv"
+      ]
+    },
+    "cells": [
+      "admin/csv",
+      "user/csv",
+      "guest/csv"
+    ],
+    "excluded": [
+      {
+        "cell": "guest/csv",
+        "reason": "guests have no export permission (route guard, AC3)"
+      }
+    ]
+  },
+  "register": [
+    {
+      "id": "TC-01",
+      "area": "export as admin",
+      "requirement": "AC1",
+      "check": "POST /export then DB read-back",
+      "cells": [
+        "admin/csv"
+      ],
+      "result": "PASS",
+      "expected_source": "AC1",
+      "evidence": [
+        "E1",
+        "E2"
+      ],
+      "path_exercised": "write",
+      "finding": null
+    },
+    {
+      "id": "TC-02",
+      "area": "export as user",
+      "requirement": "AC2",
+      "check": "POST /export as user",
+      "cells": [
+        "user/csv"
+      ],
+      "result": "FAIL",
+      "expected_source": "AC2: users export their own orders only",
+      "evidence": [
+        "E3"
+      ],
+      "path_exercised": "write",
+      "finding": "F1"
+    },
+    {
+      "id": "TC-03",
+      "area": "export button visible to guest",
+      "requirement": "AC3",
+      "check": "n/a",
+      "cells": [],
+      "result": "NOT APPLICABLE",
+      "reason": "guest role cannot reach the page (route guard)",
+      "evidence": []
+    }
+  ],
+  "ledger": [
+    {
+      "id": "E1",
+      "type": "API request/response",
+      "file": "E1-export-response.json",
+      "env": "TEST",
+      "commit": "main @ 1a2b3c4",
+      "captured_at": "2026-10-26T10:02:11Z",
+      "proves": "export returns 202"
+    },
+    {
+      "id": "E2",
+      "type": "DB query result",
+      "file": "E2-export-row.csv",
+      "env": "TEST",
+      "commit": "main @ 1a2b3c4",
+      "captured_at": "2026-10-26T10:02:40Z",
+      "proves": "row written with status queued"
+    },
+    {
+      "id": "E3",
+      "type": "API request/response",
+      "file": "E3-user-export-response.json",
+      "env": "TEST",
+      "commit": "main @ 1a2b3c4",
+      "captured_at": "2026-10-26T10:10:05Z",
+      "proves": "user export contains another account's orders"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "title": "user export includes other accounts' orders",
+      "layer": "BE",
+      "severity": "High",
+      "status": "CONFIRMED BUG",
+      "evidence": [
+        "E3"
+      ],
+      "expected_source": "AC2",
+      "ticket": "APP-130"
+    }
+  ],
+  "escape_classes": {
+    "E1": "checked",
+    "E2": "not applicable: no import in scope"
+  },
+  "phases": [
+    {
+      "name": "Phase 0",
+      "status": "done"
+    },
+    {
+      "name": "Phase 4",
+      "status": "done"
+    },
+    {
+      "name": "Phase 6 perf",
+      "status": "skipped",
+      "note": "targeted mode"
+    }
+  ],
+  "checkpoint": {
+    "last_phase": "Phase 8",
+    "next_step": null,
+    "open_rows": []
+  },
+  "verdict": {
+    "run": "NO-GO",
+    "alias": null,
+    "remaining_risk": "none",
+    "confidence_line": "Verified 2 of 2 in-scope areas; BLOCKED 0; NOT YET VERIFIED 0; Remaining Risk: none",
+    "audit": "AUDIT_PASSED"
+  }
+}

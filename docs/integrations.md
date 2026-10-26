@@ -1,5 +1,9 @@
 # Integrations
 
+> **Last checked 2026-10-26.** MCP server versions are pinned in `.mcp.json.template`; each server's
+> `_tested` field says whether that version was exercised with this template. Package names, flags and
+> connector behaviour change between releases: re-check them when you bump a pin (`docs/upgrading.md`).
+
 Every integration is **optional** and switched by `PROJECT-PROFILE.md` §2. Nothing here requires the
 original author's accounts or infrastructure. This page says what each one provides, how it is set up,
 and what to use instead when it is unavailable.

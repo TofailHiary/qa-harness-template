@@ -20,6 +20,12 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+## If no arguments provided
+Ask, then STOP until answered:
+> "Which feature, endpoint or area? Which roles (including an attacker account from another tenant)? Test (default) or Dev?"
+
+Do not guess the scope.
+
 ---
 
 ## Inline gates (compact — full detail in qa-standards)
@@ -182,7 +188,7 @@ The security scale is a domain finding scale, not a run verdict. Translate befor
 | VULNERABLE / FAIL | **FAIL** |
 | could not test | **BLOCKED** (+ what would unblock) or **NOT APPLICABLE** (+ the scope predicate) |
 
-The orchestrator records the mapped value; the security wording may follow in parentheses. Close with the confidence line: `Verified N of M in-scope checks; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: <one line or "none">`.
+The orchestrator records the mapped value; the security wording may follow in parentheses. Close with the confidence line: `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: <one line or "none">` (an area here is one of the audit checks).
 
 ---
 
@@ -203,4 +209,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the endpoint/path/CVE-pattern/symptom; UPDATE an existing entry instead of filing a duplicate (security findings are often re-encountered — annotate the existing one).
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** feature/endpoint + date, the mapped result (PASS / FAIL / BLOCKED / NOT APPLICABLE / NOT YET VERIFIED, with the SECURE / AT RISK / VULNERABLE rating in parentheses), vulns (ID, severity, layer, NEW/DUPLICATE), test data (endpoints / role accounts / entity IDs — never secrets), root-cause `path:line`, headers observed per surface, regression risks for next time, any prior memory disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

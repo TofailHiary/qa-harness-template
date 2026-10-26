@@ -86,3 +86,37 @@ Passwords are read by `flow.js` from the environment (`DEMO_PASS`), never writte
 ## 9. Explain a change to a non-engineer
 
 > "/explainer PR #88 — what will a Manager see now that they could not before?"
+
+## 10. Is this machine ready, and do the guards really block?
+```bash
+python .claude/scripts/doctor.py
+```
+Interpreters, Git Bash / sh, Node, Git, the hook wiring, a forbidden and an allowed action through every
+guard, the profile, `.mcp.json` (placeholders vs inline secrets - never the values) and the tool bindings.
+It ends with `READY` or names the FAIL rows.
+
+## 11. Resume an interrupted run
+A long `/full-qa` stopped half way (context limit, closed laptop). Start a new session and run the same
+command: the run folder's `run.json` has `checkpoint.next_step`, so the orchestrator resumes from that phase,
+keeps the PASS / FAIL rows with their evidence and executes the NOT YET VERIFIED ones.
+
+## 12. Check a verdict before you trust it
+```bash
+python .claude/skills/qa-standards/scripts/verdict_check.py qa-evidence/APP-123-20261026
+python .claude/skills/qa-standards/scripts/verdict_check.py --summary qa-evidence
+```
+The first recomputes `N of M` and the run verdict from the record and lists every contradiction; the second
+prints one line per run.
+
+## 13. Unattended run in CI
+```bash
+sh .claude/scripts/ci-run-qa.sh "/full-qa APP-123 --mode targeted" APP-123-20261026; echo $?   # 0 GO, 1 NO-GO, 2 PARTIAL, 3 setup
+```
+See `docs/ci.md` for a GitHub Actions example.
+
+## 14. Postgres instead of MySQL
+```bash
+python .claude/scripts/render_mcp.py --add-server postgres='{"command":"npx","args":["-y","<pkg>@<version>"],"env":{"DATABASE_URI":"${QA_DB_URL}"},"_capability":"DB"}'
+python .claude/scripts/rebind.py --db mcp__postgres__execute_sql
+```
+The skills now call the Postgres tool; the binding survives every upgrade.

@@ -90,4 +90,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep for the flow/endpoint/symptom; if a prior entry quantified this flow, UPDATE it with today's rate (do not file a duplicate).
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** flow + date, **reproduction rate (X/N) and N used** (natural and amplified, if both), clean-state conditions reset between runs, suspected race/timing/ordering cause + `path:line`, verdict (CONFIRMED BUG / CANNOT CONFIRM), test data (URLs/user IDs), any prior rate confirmed or disproved. The rate + conditions are the whole point — record them precisely so the next session can compare.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

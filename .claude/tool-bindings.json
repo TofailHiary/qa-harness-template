@@ -1,0 +1,6 @@
+{
+  "_comment": "Which MCP tool ids the skills and agents call for each role. /configure-project sets these with python .claude/scripts/rebind.py; scripts/install.py re-applies them after every install or upgrade, so an upgrade never silently reverts a rebinding. Edit through rebind.py, not by hand.",
+  "db": "mcp__mcp_server_mysql__mysql_query",
+  "prod_db": "mcp__mcp_server_mysql_prod__mysql_query",
+  "history": []
+}

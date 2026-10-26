@@ -180,6 +180,14 @@ If the `mattpocock-skills` plugin is installed, `mattpocock-skills:diagnosing-bu
 
 ---
 
+## Concurrency probe (optional - when the change can be hit by many users at once)
+Single-request timings miss contention. `node .claude/skills/perf-test/scripts/load.js --url <test URL>
+--concurrency 10 --duration 20 --out qa-evidence/<run-folder>/<id>-load.json` reports p50 / p95 / p99 / max,
+error rate, status counts and req/s. It refuses every PROD host in `PROJECT-PROFILE.md §5`, sends GET/HEAD
+only unless `--i-passed-the-mutation-gate`, caps concurrency at 50 and duration at 120 s, and never logs
+headers. Compare against a single-user baseline from the same env and build; the JSON is a ledger row.
+`node load.js --self-test` proves the tool on a local server.
+
 ## Post-Session (MANDATORY — enforced)
 
 Update auto-memory before claiming completion — full ritual in qa-standards -> Memory Ritual. If it cannot be persisted -> **HALT and tell the user**; never report success.
@@ -188,4 +196,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the page/endpoint/table/symptom; UPDATE an existing entry instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** target + date, verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**; the rating GOOD/ACCEPTABLE/POOR may follow in parentheses), the measured numbers with env @ commit and dataset size (so a later run can compare like with like), bottlenecks (layer, measured number vs threshold, NEW/DUPLICATE), test data (URLs/endpoints/dataset sizes), root-cause `path:line` (slow query / N+1 / unindexed column), regression risks for next time, any prior memory disproved. A remembered number is a lead for the next run, never its baseline — re-measure.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

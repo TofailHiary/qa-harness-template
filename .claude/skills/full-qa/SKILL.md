@@ -1,6 +1,6 @@
 ---
 name: full-qa
-description: Use when a feature, user story, PR, bug fix, or release needs complete multi-layer QA validation ending in a GO/NO-GO verdict. The master orchestrator — runs the full cross-layer cycle and delegates to the specialist QA skills. Triggers include "full QA", "validate this story/PR", "run the QA cycle", "sign off this story". For a whole release use /release-check.
+description: Use when a feature, user story, PR, bug fix or release needs complete multi-layer QA validation ending in a GO/NO-GO verdict, delegating to the specialist QA skills. Triggers include "full QA", "validate this story/PR", "run the QA cycle", "sign off this story". For a whole release use /release-check.
 argument-hint: "user story, feature, PR, or release to fully validate (plus the QA mode if known)"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Agent", "Skill(prompt-generator)", "Skill(qa-standards)", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(test-cases-generator)", "Skill(code-review)", "Skill(db-check)", "Skill(api-test)", "Skill(ai-output-eval)", "Skill(latent-pattern-sweep)", "Skill(browser-test)", "Skill(visual-regression)", "Skill(a11y-test)", "Skill(observability-check)", "Skill(security-review)", "Skill(perf-test)", "Skill(regression-runner)", "Skill(bug-verifier)", "Skill(bug-report)", "Skill(qa-report)", "Skill(evidence-manager)", "Write"]
 ---
@@ -91,6 +91,15 @@ If the source is a tracker ticket (Jira on), pull acceptance criteria via `mcp__
 
 ---
 
+## Run record & resume (`run.json`)
+Keep `qa-evidence/<run-folder>/run.json` (`qa-standards/references/run-record.md`): create it at Scope Lock
+(one register row per in-scope area, NOT YET VERIFIED until run, plus the Step 1b matrix), update it after
+every phase (that update is the checkpoint), and if it already exists with `checkpoint.next_step` set,
+RESUME from that step and say so. Before the verdict,
+`python .claude/skills/qa-standards/scripts/verdict_check.py qa-evidence/<run-folder>` must exit 0 - it
+recomputes the confidence line and the run verdict; never type them by hand. `--package` then writes the
+`package.md` the independent audit reads.
+
 ## Reusable Reference: Cross-Layer Data Consistency
 
 For each entity tested, verify the value agrees across DB -> API -> Browser (full table in qa-standards). On mismatch -> bug. Take the entity → table → endpoint map from `PROJECT-PROFILE.md §10` and `.claude/references/system-map.md`; illustrative shape:
@@ -140,7 +149,7 @@ Delegate to `Skill(api-test)` for the enumerated endpoints. (Auth, RBAC, validat
 Delegate to `Skill(security-review)` — 10-point audit (auth, RBAC, injection, XSS, CSRF, data exposure, API security, headers, sessions). Its ratings map into the Verdict Contract (SECURE→PASS, AT RISK→FAIL or NOT YET VERIFIED, VULNERABLE→FAIL, could-not-test→BLOCKED/NOT APPLICABLE).
 
 ## Phase 7: Performance
-Delegate to `Skill(perf-test)`. Thresholds (unless `PROJECT-PROFILE.md §16` sets others): page load <3s PASS / 3-5s WARN / >5s FAIL; API P95 <500ms PASS / <1s WARN / >1s FAIL; payload/page <500KB / <2MB / over; console errors 0 = PASS else FAIL. Any FAIL -> bug.
+Delegate to `Skill(perf-test)`. The thresholds live in ONE place: `perf-test` -> Thresholds (template defaults), overridden by `PROJECT-PROFILE.md §16`. Any threshold FAIL -> bug.
 
 ## Phase 7b: Regression (regression / bugfix / release modes)
 In those modes -> `Skill(regression-runner)` over the Step 0b indirect blast radius — actively re-test the shared components / endpoints / tables / reports the change touches but is not "about". (In `full` mode this is already covered by the Phase 0 regression cases.)
@@ -157,7 +166,7 @@ In those modes -> `Skill(regression-runner)` over the Step 0b indirect blast rad
 > **Ordering is load-bearing.** The register and ledger are assembled in Phase 8, audited here, and only
 > then rendered in Phase 8b. Auditing after the report is written can only correct, never prevent.
 
-**Default (sub-agents allowed, `PROJECT-PROFILE.md §16`):** dispatch the `qa-verdict-auditor` agent with the PACKAGE only — Scope Lock, acceptance criteria / authoritative source, every finding (bugs AND passes), the Evidence Ledger, the Execution Register, the proposed verdict — and never the reasoning that produced them. It returns `AUDIT_PASSED` or `AUDIT_FAILED` + challenges.
+**Default (sub-agents allowed, `PROJECT-PROFILE.md §16`):** dispatch the `qa-verdict-auditor` agent with the PATH of `qa-evidence/<run-folder>/package.md` (from `verdict_check.py --package`) - the PACKAGE only — Scope Lock, acceptance criteria / authoritative source, every finding (bugs AND passes), the Evidence Ledger, the Execution Register, the proposed verdict — and never the reasoning that produced them. It returns `AUDIT_PASSED` or `AUDIT_FAILED` + challenges.
 
 **When §16 disables sub-agents:** do the audit in this session under a discipline that removes your own framing:
 

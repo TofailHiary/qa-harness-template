@@ -1,0 +1,19 @@
+{
+  "skill_name": "bug-verifier",
+  "evals": [
+    {
+      "id": 0,
+      "name": "invoice-rounding-cent-app-388",
+      "prompt": "verify this before I file it: on Test, order 5521 shows an invoice total of 100.01 but its line items add up to 100.00 (APP-388). A customer reported it with their own order.",
+      "expected_output": "Writes the six questions first and verifies this one bug only; records the environment and the commit (git rev-parse --short HEAD) that stamp every ledger row; cites the expected rounding rule from an authoritative source (acceptance criteria, the money columns' comments, a code contract) or labels the expectation a HYPOTHESIS; greps memory for earlier rounding findings and checks for a DUPLICATE; reproduces with the reporter's own order 5521 first (the original input class), at least three times; recomputes the total from the line-item rows in the DB instead of transcribing the API value, and reads the DECIMAL scale and column comments; compares DB, API and UI in one table; rules out caching, stale data, currency conversion and per-line versus per-total rounding; classifies the layer (BE when the API total is wrong and the DB lines are right, FE when only the screen differs); ends with exactly one of CONFIRMED BUG / NOT A BUG / CANNOT CONFIRM / DUPLICATE, with the Evidence Ledger carrying Env, Branch / Commit and Captured at; names the escape classes it checked; hands a confirmed bug to bug-report; updates memory.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "intermittent-export-button",
+      "prompt": "the export button on the reports page sometimes does nothing. I clicked it twice today and nothing downloaded, then it worked. Confirm it's a bug so I can tell the developer.",
+      "expected_output": "Attempts reproduction with network and console captured on every attempt; recognises an intermittent signal and hands off to flaky-race-verifier for at least five attempts and a reproduction rate, testing one timing variable at a time (double click, slow network, large report, two exports at once); does not call it CONFIRMED BUG without a reproduction; if the escalation rounds (different user, different data, clean session, direct API) still do not reproduce it, ends with CANNOT CONFIRM and documents every round, what was ruled out and what would be needed to reproduce it (the user's account, the time, the report size); keeps speculative wording such as 'probably a race' out of the verdict line; writes a ledger row for every attempt; updates memory.",
+      "files": []
+    }
+  ]
+}

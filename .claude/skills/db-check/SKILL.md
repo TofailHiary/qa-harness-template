@@ -239,4 +239,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the table/column/entity-ID/symptom; UPDATE an existing entry instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
 4. **Content:** feature + date + Env + commit, verdict = the canonical run verdict per qa-standards -> Verdict Contract (**GO / NO-GO / PARTIAL**; a skill alias may follow in parentheses), issues (table, check, severity, layer, NEW/DUPLICATE), the soft-delete mechanism and contract facts you confirmed (so §10 can be updated), test data (ids/tables/DB), root-cause location, regression risks for next time, any prior memory this run disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

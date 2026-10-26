@@ -1,6 +1,6 @@
 ---
 name: explainer
-description: Use when someone wants a change, feature, story, or bug explained in plain language from the actual user's point of view — "what does this mean for a Manager / User / Guest / Admin?" — as a before -> after narrative with an everyday scenario or analogy, even when no formal story or acceptance criteria are provided (infer from the PR diff, code, or ticket). Triggers include "explain this change as a user scenario", "what will the manager actually see now", "ELI5 this PR", "describe this bug in human terms", "what could they not do before that they can now", "write the release note line for this".
+description: Use when someone wants a change, feature, story or bug explained in plain language from a real user's point of view (Manager / User / Guest / Admin), as a before -> after scenario, even without formal acceptance criteria. Triggers include "explain this change as a user scenario", "what will the manager actually see now", "ELI5 this PR", "describe this bug in human terms", "write the release note line for this".
 argument-hint: "the change to explain — a PR number, ticket key, file/feature name, or a pasted diff"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(qa-standards)"]
 ---
@@ -11,6 +11,12 @@ allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__github__*", "mcp__claude_a
 > `PROJECT-PROFILE.md` §2 (Capability Map). If that capability is `off`, STOP and tell the user:
 > "This project has no any of GitHub/LocalRepos configured, so `/explainer` is unavailable. Run
 > `/configure-project` to enable it." Do not call this skill's tools when gated off.
+>
+> **No profile at all? (user-level install - there is no `.claude/PROJECT-PROFILE.md`.)** Do not stop.
+> Ask once for what this skill needs - the change itself (pasted diff, PR text, ticket text or a local repo path), the product's user roles and the audience - label every conclusion that rests on those
+> answers INFERRED, skip the steps whose tools are not available and say which, and if no memory
+> folder exists say in one line that memory was not persisted. A profile that EXISTS but is blank still
+> means: run `/configure-project`.
 
 
 Turn a technical change (PR / diff / ticket / code) into a plain-language, per-role story: "as a Manager, before you saw a blank chart; now you see your team's numbers." This is an explanation, not a test — there is **no verdict, no test plan, no Evidence Ledger, and no memory ritual**. The output is the explanation itself.
@@ -83,3 +89,13 @@ What's different for you: ...
 - No identifiers in the narrative: no emails, account or tenant ids, hostnames, commit hashes or internal ticket chatter. A role name and a screen name are enough.
 - Reflect only what the diff does, never what it should do — if the change does less than the ticket asked, say "this change covers X; Y is not in it", without judging it.
 - No Evidence Ledger, no Scope Lock table, no memory write — this is a utility, not a QA run.
+
+## Post-Session (MANDATORY — enforced)
+
+Update auto-memory before claiming completion — full ritual in qa-standards -> Memory Ritual. If it cannot be persisted -> **HALT and tell the user**; never report success.
+
+1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool; grep the folder first and UPDATE an existing entry instead of filing a duplicate.
+2. **Update** `MEMORY.md` with a one-line (<=200-char) dated pointer.
+3. **Content:** the change explained (ticket / PR), the roles covered, every behaviour the explanation had to INFER (labelled INFERRED) so a later run can verify it.
+4. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows a non-zero size, else HALT.

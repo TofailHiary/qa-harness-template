@@ -148,4 +148,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the page/route/component/user-ID/symptom; UPDATE an existing entry instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** feature/page + date, verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**; a skill alias may follow in parentheses), bugs (ID, severity, layer FE, NEW/DUPLICATE), the write paths exercised and how each was closed, test data (URLs/user IDs/logins — identifiers only, never passwords), root-cause `path:line`, browser-session noise confirmed with its source, regression risks for next time, any prior memory disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

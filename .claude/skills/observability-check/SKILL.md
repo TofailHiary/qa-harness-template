@@ -95,4 +95,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep for the page/endpoint/symptom; UPDATE an existing entry instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** flow/page + date, verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**), every hidden error found with its **source** (console/network/API/DB/log) and layer, whether the UI masked it, whether the stored error masked an earlier one, the exact request/status or DB error column, async consumers and their terminal-state check, test data (URLs/user IDs — identifiers only, no tokens), root-cause `path:line` where known, any prior memory confirmed or disproved. Record the silenced errors precisely — the whole value is that the next session knows what the UI hides here.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

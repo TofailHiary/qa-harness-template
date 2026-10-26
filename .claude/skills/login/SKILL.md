@@ -20,6 +20,12 @@ Log into the project's portals for QA testing. This is a **utility** used by oth
 ## ARGUMENTS
 $ARGUMENTS
 
+## If no arguments provided
+Ask, then STOP until answered:
+> "Which surface (main app / admin) and which role (Admin / Manager / User / Guest, or a named test account from PROJECT-PROFILE.md §7)? Browser session or API token?"
+
+Do not guess the scope.
+
 ---
 
 ## Ground rules
@@ -139,4 +145,6 @@ Use `mcp__http-client__http_post` for the login request. Store the token or cook
 ---
 
 ## Post-Session (light — qa-standards -> Memory Ritual)
+- **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 Record only what the next session needs: which account/role/environment worked, the auth stack per surface, and any session quirk verified (second-tab logout, reload logout, token lifetime) — **never a password or token**. Cross-reference first and UPDATE the existing entry under `<memory folder: PROJECT-PROFILE.md §12>` (`reference_login_<slug>.md`) instead of filing a duplicate; then `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT and tell the user.
+

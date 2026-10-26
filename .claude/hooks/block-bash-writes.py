@@ -17,10 +17,20 @@ Guards (all regex-based; see scripts/hook-redteam for the qualification suite):
      writeFileSync, ...), and a redirect after `cd` into it or while cwd is inside it.
   4. Heredoc BODIES fed to a non-shell interpreter are DATA and are not scanned (a markdown file
      written through `python - <<PY` that merely mentions a git verb must not be blocked).
+  5. Opaque execution is refused everywhere: a decoded payload piped into a shell or interpreter
+     (`base64 -d | sh`), `eval` of a computed string, `sh -c "$VAR"`, `pwsh -EncodedCommand`.
+     The guard cannot read what will run, so it cannot allow it.
+  6. The GUARD SURFACE (.claude/hooks/**, .claude/settings.json, .claude/settings.local.json) cannot be
+     written from the shell unless a human started the session with QA_HARNESS_ADMIN=1. Edits to
+     settings.json and harness-config.json go through the Write/Edit tools, where block-writes.py
+     checks that they do not loosen the guards.
+  7. Quoted text given to a data-only command (grep, rg, echo, printf) is not read as a git command,
+     unless the line also executes something (a pipe into a shell, eval, $(...), a script run).
 Reads stay allowed: a guard that blocks `docker ps` or `git log` gets switched off, and a
 switched-off guard protects nothing. Fail-closed on malformed hook input.
 """
 import json
+import os
 import re
 import sys
 import harness_config as hc
@@ -40,6 +50,7 @@ SRC_ALT = _alt(SRC_DIRS)
 OWNED_ALT = _alt(OWNED_DIRS)
 
 MUTATING_NPM_VERBS = ["publish", "version", "ci"]
+ADMIN = os.environ.get("QA_HARNESS_ADMIN") == "1"
 
 
 def _block(reason):
@@ -95,7 +106,8 @@ def strip_heredoc_bodies(cmd, keep_interp=False):
     spans = []
     for m in re.finditer(r"<<-?\s*([\'\"]?)([A-Za-z_][A-Za-z0-9_]*)\1", cmd):
         head = cmd[:m.start()]
-        launcher = head.rsplit("|", 1)[-1].rsplit(";", 1)[-1].strip().split()
+        # the command that receives this heredoc: the last segment of the chain (&& || ; | newline subshell)
+        launcher = re.split(r"&&|\|\||[|;\n(]", head)[-1].strip().split()
         piped_to_interp = bool(re.search(r"\|\s*(?:env\s+)?(python[0-9.]*|node|perl|ruby|php|bash|sh)\b", cmd))
         first = launcher[0] if launcher else ""
         if first == "env" and len(launcher) > 1:
@@ -159,7 +171,7 @@ def check_git(cmd):
 def _check_git_one(cmd):
     """Block any git invocation whose verb is not provably read-only."""
     # `git` must be a command token: not part of a path such as `./.git -prune` (a dot before it).
-    m = re.search(r"(?i)(?:^|[^A-Za-z.])git\s+((?:-[A-Za-z]+(?:\s+\S+)?\s+|--[A-Za-z-]+(?:=[^\s]+)?\s+)*)([A-Za-z][A-Za-z-]*)(.*)", cmd)
+    m = re.search(r"(?i)(?:^|[^A-Za-z.])git(?:\.exe)?\s+((?:-[A-Za-z]+(?:\s+\S+)?\s+|--[A-Za-z-]+(?:=[^\s]+)?\s+)*)([A-Za-z][A-Za-z-]*)(.*)", cmd)
     if not m:
         return                      # bare 'git', 'git --version' etc.
     verb = m.group(2).lower()
@@ -186,7 +198,7 @@ def check_writes(cmd_norm):
     if not SRC_ALT or not re.search("/" + SRC_ALT + r"(?:/|$|\s|[^A-Za-z0-9_-])", cmd_norm, re.IGNORECASE):
         return
     into = "/(?:" + "|".join(re.escape(d) for d in SRC_DIRS) + ")"
-    if re.search(r">>?\s*[^|<>\n]*" + into, cmd_norm, re.IGNORECASE):
+    if re.search(r">[>|]?\s*[^|<>\n]*" + into, cmd_norm, re.IGNORECASE):
         _block("READ-ONLY QA: Bash redirection into a protected repo is blocked.")
     if re.search(r"\|\s*tee\b", cmd_norm, re.IGNORECASE):
         _block("READ-ONLY QA: tee with a protected repo path is blocked.")
@@ -207,7 +219,7 @@ def check_cwd_and_interpreter_writes(cmd, cmd_norm):
     with open(...,'w')) at any path form. READS STAY ALLOWED."""
     if not SRC_ALT:
         return
-    cd_src = re.search(r"(?:^|[;&|])\s*cd\s+[^;&|]*" + SRC_ALT, cmd_norm, re.IGNORECASE)
+    cd_src = re.search(r"(?:^|[;&|('\"{])\s*cd\s+[^;&|]*" + SRC_ALT, cmd_norm, re.IGNORECASE)
     wverb = re.search(
         r"(>>?[^>]|(?:^|[^A-Za-z])tee\b|(?:^|[^A-Za-z])sed\s+-i"
         r"|(?:^|[^A-Za-z])dd\s+[^|]*of="
@@ -245,13 +257,112 @@ CONDITIONAL_WRITE = {
     "npx":    r".",
     "pip":    r"(?:^|\s)(install\b|uninstall\b|download\b)",
     "pip3":   r"(?:^|\s)(install\b|uninstall\b|download\b)",
+    "find":   r"(?:^|\s)(-delete\b|-exec(?:dir)?\s+(?:rm|mv|cp|sed|tee|truncate|shred|chmod|chown|ln|touch|mkdir)\b|-fprint|-fls)",
 }
 
 # Interpreters: a write CALL inside the payload is the signal, not the interpreter itself.
 INTERP = r"(?:^|[^A-Za-z0-9_./-])(python[0-9.]*|node|perl|ruby|php|pwsh|powershell)(?:\s|$)"
-INTERP_WRITE = r"(?:open\s*\([^)]*[\x22\x27][wax]|writeFileSync|appendFileSync|createWriteStream|\.write\s*\(|WriteAllText|Set-Content|Out-File|os\.(?:remove|rename|unlink)|shutil\.(?:copy|move))"
+INTERP_WRITE = (r"(?:open\s*\([^)]*[\x22\x27][wax+]|\.write(?:_text|_bytes)?\s*\(|\.(?:unlink|rmdir|mkdir|touch|rename|symlink_to|hardlink_to)\s*\("
+                r"|os\.(?:remove|rename|renames|replace|unlink|rmdir|removedirs|makedirs|mkdir|truncate|chmod)"
+                r"|shutil\.(?:copy\w*|move|rmtree)"
+                r"|(?:writeFile|appendFile|rmSync|rmdirSync|unlinkSync|mkdirSync|renameSync|copyFileSync|cpSync|truncateSync|createWriteStream)\b"
+                r"|\b(?:fs|fsp|promises)\.(?:rm|rmdir|unlink|mkdir|rename|copyFile|cp|truncate|writeFile|appendFile)\s*\("
+                r"|File\.(?:write|delete|rename|open\s*\([^)]*[\x22\x27][wa])|FileUtils\.|\bunlink\s*\(?"
+                r"|WriteAllText|WriteAllBytes|Set-Content|Out-File)")
 
 NO_WRITE_FLAGS = r"(?:^|\s)(--dry-run|--help|--version)(?=\s|$)"
+
+
+# Opaque execution: the guard cannot read what will run, so it cannot allow it.
+OPAQUE = [
+    (r"(?i)\b(?:base64|xxd|openssl|uudecode|gunzip|zcat|rev)\b[^;&\n]*\|\s*(?:sudo\s+)?(?:env\s+)?(?:bash|sh|zsh|dash|ksh|python[0-9.]*|node|perl|ruby|php|pwsh|powershell|source)\b",
+     "a decoded or transformed payload piped into a shell or interpreter"),
+    (r"(?i)(?:^|[;&|(\s])eval\s+[^;&|\n]*[$`]", "eval of a computed string"),
+    (r"(?i)\b(?:bash|sh|zsh|dash|ksh)\s+-c\s+[\x22\x27]?\$", "a shell -c payload taken from a variable or substitution"),
+    (r"(?i)\b(?:pwsh|powershell)(?:\.exe)?\b[^;&|\n]*\s-(?:e|ec|en|enc|encodedcommand)\s+[A-Za-z0-9+/=]{8,}", "an encoded PowerShell command"),
+]
+
+
+def check_opaque(cmd):
+    for pat, why in OPAQUE:
+        if re.search(pat, cmd):
+            _block("READ-ONLY QA: %s is blocked - the guard cannot inspect what would run. "
+                   "Run the command in plain text instead." % why)
+
+
+# Quoted text given to a data-only command is not a command - unless the line executes something.
+_DATA_CMDS = {"grep", "egrep", "fgrep", "rg", "ag", "ack", "echo", "printf"}
+_EXEC_HINT = re.compile(
+    r"(?i)\|\s*(?:sudo\s+)?(?:env\s+)?(?:xargs|bash|sh|zsh|dash|ksh|source|python[0-9.]*|node|perl|ruby|php|pwsh|powershell)\b"
+    r"|\beval\b|\$\(|`|\bexec\b"
+    r"|(?:^|[;&|(]\s*)(?:sudo\s+)?(?:bash|sh|zsh|dash|ksh|source|\.)\s"
+    r"|\b(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)(?:\.exe)?\s+(?:-\w+\s+)*[-/]c\b")
+
+
+def mask_inert_quotes(cmd):
+    if _EXEC_HINT.search(cmd):
+        return cmd
+    out = []
+    for part in re.split(r"(&&|\|\||;|\||\n)", cmd):
+        toks = part.strip().split()
+        i = 0
+        while i < len(toks) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[i]):
+            i += 1
+        first = toks[i].rsplit("/", 1)[-1].lower() if i < len(toks) else ""
+        if first in _DATA_CMDS:
+            part = re.sub(r"\x22(?:[^\x22\\]|\\.)*\x22|\x27[^\x27]*\x27", '""', part)
+        out.append(part)
+    return "".join(out)
+
+
+# The guard surface: the hooks themselves and the settings that wire them.
+GS = r"\.claude/(?:hooks/[^\s\x22\x27|;&<>]*|settings(?:\.local)?\.json)"
+# Relative targets, used only when the working directory (or a cd target) is .claude or .claude/hooks.
+# The look-behind keeps an absolute path elsewhere (/tmp/x.py, C:/work/x.py) from matching its file name.
+_B = r"(?<![\w$./\\:-])"
+GS_REL_HOOKS = _B + r"(?:\./)?(?:[A-Za-z0-9_.-]+\.(?:py|sh|js)|harness-config\.json)(?![\w.-])"
+GS_REL_CLAUDE = _B + r"(?:\./)?(?:hooks/[^\s\x22\x27|;&<>]+|settings(?:\.local)?\.json)(?![\w.-])"
+
+
+def _gs_write(cmd_norm, target, scan):
+    t = target
+    pats = [
+        r">[>|]?\s*[\x22\x27]?[^\s|;&<>]*?" + t,
+        r"\btee\s+(?:-a\s+)?[^|;&\n]*" + t,
+        r"\b(?:sed|perl)\s+(?:[^|;&\n]*\s)?-[A-Za-z]*i[^|;&\n]*" + t,
+        r"\b(?:cp|mv|install|ln|rsync)\b[^|;&\n]*\s[\x22\x27]?[^\s|;&]*" + t + r"[^\s|;&]*[\x22\x27]?\s*(?:$|[;&|\n])",
+        r"\bdd\b[^|;&\n]*of=[\x22\x27]?[^\s]*" + t,
+        r"\b(?:rm|unlink|truncate|touch|chmod|chown|shred|mkdir)\b[^|;&\n]*" + t,
+        r"\bfind\b[^|;&\n]*" + t + r"[^|;&\n]*-(?:delete|exec)",
+        r"\b(?:curl|wget)\b[^|;&\n]*(?:-o|-O|--output(?:-document)?)\s*[\x22\x27]?[^\s]*" + t,
+    ]
+    if any(re.search(p, cmd_norm, re.IGNORECASE) for p in pats):
+        return True
+    return bool(re.search(t, cmd_norm, re.IGNORECASE) and re.search(INTERP, cmd_norm, re.IGNORECASE)
+                and re.search(INTERP_WRITE, scan, re.IGNORECASE))
+
+
+def check_guard_surface(scan, cmd_norm, cwd):
+    if ADMIN:
+        return
+    cwd_n = (cwd or "").replace(chr(92), "/").rstrip("/")
+    in_hooks = bool(re.search(r"/\.claude/hooks$", cwd_n))
+    in_claude = bool(re.search(r"/\.claude$", cwd_n))
+    for tgt in re.findall(r"(?:^|[;&|(\x27\x22{])\s*(?:cd|pushd)\s+([^;&|\s\x27\x22]+)", cmd_norm):
+        tgt = tgt.rstrip("/")
+        if tgt.endswith(".claude/hooks") or (in_claude and tgt in ("hooks", "./hooks")):
+            in_hooks = True
+        elif tgt.endswith(".claude"):
+            in_claude = True
+    hit = re.search(GS, cmd_norm, re.IGNORECASE) and _gs_write(cmd_norm, GS, scan)
+    if not hit and in_hooks:
+        hit = _gs_write(cmd_norm, GS_REL_HOOKS, scan)
+    if not hit and in_claude:
+        hit = _gs_write(cmd_norm, GS_REL_CLAUDE, scan)
+    if hit:
+        _block("READ-ONLY QA: writing the guard surface (.claude/hooks, .claude/settings*.json) from the shell "
+               "is blocked. Edit settings.json / harness-config.json with the Write or Edit tool (the change is "
+               "checked), or have a human start the session with QA_HARNESS_ADMIN=1 for hook maintenance.")
 
 
 def _writes_into_src(cmd_norm, cwd):
@@ -284,7 +395,7 @@ def check_write_verb_near_src(cmd, cmd_norm, cwd):
         _block("READ-ONLY QA: interpreter write with a protected repo in reach. "
                "Write to the memory dir or qa-evidence instead.")
 
-    if re.search(r"(?:^|[;&|])\s*(cd|pushd)\s", cmd_norm, re.IGNORECASE) and re.search(r">>?[^>]", cmd_norm):
+    if re.search(r"(?:^|[;&|('\"{])\s*(cd|pushd)\s", cmd_norm, re.IGNORECASE) and re.search(r">>?[^>]", cmd_norm):
         _block("READ-ONLY QA: redirect after a directory change into a protected repo is blocked.")
 
     if cwd and _in_src(cwd.replace(chr(92), "/")) and re.search(r">>?[^>]", cmd_norm):
@@ -295,9 +406,11 @@ def main():
     cmd, cwd = _read_cmd()
     if not cmd:
         sys.exit(0)
-    scan_git = strip_heredoc_bodies(cmd)                     # heredoc bodies are DATA for the git/npm scan
+    scan_git = mask_inert_quotes(strip_heredoc_bodies(cmd))  # heredoc bodies / inert quotes are DATA for the git/npm scan
     scan_write = strip_heredoc_bodies(cmd, keep_interp=True)  # ...but a program fed to python/node is scanned for writes
     cmd_norm = scan_write.replace("\\", "/")
+    check_opaque(scan_write)
+    check_guard_surface(scan_write, cmd_norm, cwd)
     if not owned_context(scan_git.replace("\\", "/"), cwd):
         check_git(scan_git)
         check_npm(scan_git)

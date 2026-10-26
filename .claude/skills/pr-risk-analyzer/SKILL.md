@@ -81,4 +81,5 @@ Update auto-memory before claiming completion (qa-standards -> Memory Ritual); i
 2. **Cross-reference first** — grep the folder for the PR / feature / table / component; UPDATE an existing entry if the PR or feature already has one.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** PR + date, the high-risk areas identified, the indirect consumers found (so the next regression pass starts from the known blast radius), any contract change, the Step 3b result for fix PRs, and any latent row handed to `latent-pattern-sweep`.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

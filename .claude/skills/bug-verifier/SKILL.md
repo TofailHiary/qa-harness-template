@@ -137,4 +137,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep for the endpoint/path/user-ID/symptom; UPDATE an existing entry (esp. on DUPLICATE-CHECK) instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
 4. **Content:** bug + date, verdict (CONFIRMED BUG / NOT A BUG / CANNOT CONFIRM / DUPLICATE), layer, reproduction rate, input class used, test data (IDs / account identifiers — never passwords), root-cause `path:line`, escape classes checked, any prior memory confirmed/disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

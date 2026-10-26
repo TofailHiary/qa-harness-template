@@ -97,4 +97,6 @@ The engine clears highlights page-wide (an element often disappears right after 
 
 ## Post-Session (MANDATORY)
 
+- **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 Update auto-memory before claiming completion (qa-standards → Memory Ritual): the demo folder, voice, duration, the accounts used (identifiers only), the restore verification, and any selector lesson, in the feature's memory file under `<memory folder: PROJECT-PROFILE.md §12>`; one-line pointer in `MEMORY.md`; verify with `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"`. If memory cannot be persisted → HALT and tell the user.
+

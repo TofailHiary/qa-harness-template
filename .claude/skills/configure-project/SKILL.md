@@ -31,9 +31,10 @@ Also detect the demo prerequisites: `node .claude/skills/demo-creator/scripts/se
 
 ## Step 2 — Ask only for the gaps (one area at a time)
 Walk §1→§18. For each area show what you detected and ask the user ONLY to confirm or fill what you
-could not infer. Prefer `AskUserQuestion` for bounded choices. Critically, for §6 DB and §7 Auth, ask
-for the **secret values themselves** (passwords/keys) — you will write them into the git-ignored
-`.mcp.json` so the user never edits a file. If the user says "no access / N/A" for an area, set its
+could not infer. Prefer `AskUserQuestion` for bounded choices. For §6 DB and §7 Auth, secrets
+default to **environment variables**: confirm the variable NAMES (the template's `${QA_DB_PASS}` style, or
+the user's own) and never ask for the values. Only if the user explicitly asks to store values inline in
+the git-ignored `.mcp.json` do you take them (Step 5) — `doctor.py` will keep warning about it. If the user says "no access / N/A" for an area, set its
 `§2 Capability Map` flag `off` with a one-line reason and continue. For §12 ask which repos are
 QA targets (protected) and which are the team's own tooling (owned — edits/commits allowed). For §15
 ask the tracker, project key, ticket id pattern and the filing/transition rules. For §16 confirm the
@@ -61,45 +62,47 @@ Run and report:
   `Demo: on` in §2 only when it prints `READY`, and fill §18 defaults.
 
 ## Step 5 — Generate .mcp.json + harness-config.json (automatic)
-- Copy `.mcp.json.template` → `.mcp.json`. Replace every `${PROJECT_ROOT}` with this project's absolute
-  path. Set `"disabled": true` on each server whose `_capability` is `off` in §2. **Substitute the secret
-  values the user gave you directly into the `env` blocks** (`.mcp.json` is git-ignored, so this is safe
-  and means the user sets no environment variables). If the user prefers env vars instead, leave the
-  `${VAR}` placeholders and tell them which to export. If §14 names a project MCP server, add its block.
+- Run `python .claude/scripts/render_mcp.py`. It writes `.mcp.json` from the template and §2: project path
+  substituted, servers of `off` capabilities disabled, `cmd /c` added on Windows only, secrets left as
+  `${VAR}` placeholders, servers it does not know (a §14 project server, a Postgres server) kept. Show the
+  user the export lines it prints (names only). `Read(.mcp.json)` is denied in settings.json on purpose:
+  never open the rendered file to "check" it — re-run the renderer with `--dry-run` instead.
+- Inline secrets (only on the user's explicit request): pass them as the server's env through
+  `render_mcp.py --add-server <name>='<json>'` built by the user, or let the user edit `.mcp.json` by hand.
+  Never echo a value back. If §14 names a project MCP server, add it with `--add-server`.
 - Write `.claude/hooks/harness-config.json`: `memory_root` (blank = auto-derive), `evidence_root`
   (`qa-evidence`), `protected_repos` = the QA-target repo folder names from §3/§12, `owned_repos` = the
   owned folder names from §12 (or `[]`), keep `allowed_write_globs`, and `gate` =
   `{"enforce": false, "ticket_id_pattern": "<regex from §15>", "extra_concession_phrases": [], "extra_example_markers": []}`.
   Set `gate.enforce` true only when §16 says the gate is enforced (then also tell the user to restart).
+- **The guard config is checked by content.** Adding protected repos, removing owned repos and narrowing
+  the allow-globs always go through. Adding an OWNED repo, removing a protected repo, widening
+  `allowed_write_globs`, moving `memory_root` / `evidence_root` into risky places or switching an enforced
+  gate off LOOSENS the guards: the Write is blocked unless the human started Claude Code with
+  `QA_HARNESS_ADMIN=1`. When §12 names owned repos, show the user the exact `"owned_repos": [...]` line
+  and let them add it by hand (or restart with the variable set) — never look for another way around it.
 
 ## Step 5b — Add a server NOT in the template (only with approval)
 If Step 1 found the project needs an MCP server the template lacks (Postgres, Mongo, Redis, a cloud SDK,
 etc.):
 1. Use `AskUserQuestion` to propose it ("Your project uses Postgres — add the Postgres MCP server? It
    runs via `npx -y <pkg>`."). Only proceed on yes.
-2. Add its block to `.mcp.json` (command/args/env), with secrets the user provides.
+2. Add it with `python .claude/scripts/render_mcp.py --add-server <name>='<json>'` (pinned version,
+   `${VAR}` placeholders for secrets, `"_capability"` set) — it is kept on every re-render.
 3. Record its tool id in PROJECT-PROFILE §6 (or §14 for a project server) for Step 6.
 4. Warm it with `npx -y <pkg> --help` and report success/failure.
 
 ## Step 6 — Bind tools + toggle skills (automatic)
 - **Tool rebind (only if a tool id differs from the template default).** The template's DB skills/agents
-  call `mcp__mcp_server_mysql__mysql_query`. If §6's DB tool id is different (e.g. Postgres/Mongo),
-  rebind it across the harness by running a one-shot replace via Bash (this edits `.claude/**`, which is
-  allowed because `.claude` is NOT a protected source repo — only product repos are write-blocked):
+  call `mcp__mcp_server_mysql__mysql_query` (prod: `mcp__mcp_server_mysql_prod__mysql_query`). If §6 names
+  another id (Postgres, Mongo, a §14 server), run:
   ```bash
-  python - "$CLAUDE_PROJECT_DIR" "mcp__mcp_server_mysql__mysql_query" "<NEW_TOOL_ID>" <<'PY'
-  import sys, glob, os
-  root, old, new = sys.argv[1], sys.argv[2], sys.argv[3]
-  for f in glob.glob(os.path.join(root, ".claude", "skills", "*", "SKILL.md")) + \
-           glob.glob(os.path.join(root, ".claude", "agents", "*.md")):
-      s = open(f, encoding="utf-8").read()
-      if old in s:
-          open(f, "w", encoding="utf-8").write(s.replace(old, new))
-          print("rebound:", os.path.basename(os.path.dirname(f)) or os.path.basename(f))
-  PY
+  python .claude/scripts/rebind.py --db <NEW_DB_TOOL_ID> [--prod-db <NEW_PROD_TOOL_ID>]
   ```
-  (Add the new tool id to the affected skills' `allowed-tools` the same way if it is missing. Do the
-  same for the prod tool id when Prod-DB is on.)
+  It replaces whole tool ids in skills, agents, rules and CLAUDE.md (including `allowed-tools`) and records
+  the binding in `.claude/tool-bindings.json`; `scripts/install.py` re-applies it after every upgrade, so
+  the rebinding is never silently undone. `rebind.py --check` must print `tool bindings: OK`. SQL written
+  for MySQL in skill examples stays MySQL — note the engine in §4 so the skills translate the dialect.
 - **Skill toggle.** Each `required`/`any[...]` skill self-disables via its capability guard when its
   capability is `off`. Optionally declutter by moving disabled skills into `.claude/skills-disabled/`
   with Bash `mv` (reversible; `.claude` is writable). Report the active vs disabled list from
@@ -114,8 +117,10 @@ restart to connect. So:
   API GET a health/base URL; Browser open the app URL + snapshot; GitHub read the repo; Postman list
   collections; Jira read one ticket; §14 server status tool; Demo `setup.js --check`. Any failure →
   flip that capability `off` (or tell the user the one thing to fix).
-- Run `python scripts/validate.py --installed` when the template's `scripts/` folder was installed, to
-  confirm hook syntax, settings wiring and that no placeholder URL remains in `.mcp.json`.
+- Run `python .claude/scripts/doctor.py`. It must end with READY: interpreters, Git Bash / sh, node, the
+  hook wiring, a live self-test of every guard through `run-hook.sh`, the profile, `.mcp.json` (placeholders
+  vs inline secrets, never the values) and the tool bindings. Any FAIL row is fixed before testing starts.
+- Run `python scripts/validate.py --installed` too when the template's `scripts/` folder was installed.
 
 ## Step 8 — Summary + memory
 Print the final Capability Map: what works now, what is `off` and why, the hook policy (protected vs
@@ -127,6 +132,7 @@ tracker rules, date.
 - May write `PROJECT-PROFILE.md`, `settings.json`, `harness-config.json`, `.mcp.json` (Write tool), and
   may edit/move files anywhere under `.claude/**` via Bash (the harness owns those). MUST NOT modify
   product source code, run git writes, or touch protected repos.
-- Never print a secret back to the user; write it into the git-ignored `.mcp.json` and confirm by name only.
+- Never ask for, print or read back a secret value. Secrets are environment variables by default; inline
+  values exist only when the user explicitly chose them, and are confirmed by name only.
 - Idempotent: safe to re-run — re-detect, re-confirm, overwrite generated files, re-probe. Never
   overwrite a filled `PROJECT-PROFILE.md` section the user did not ask to change.

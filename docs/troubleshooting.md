@@ -2,6 +2,16 @@
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Every tool call is blocked: `no Python 3 interpreter found` | `run-hook.sh` found no working `python3` / `python` / `py -3` (fail closed) | install Python 3, or set `QA_HOOK_PYTHONS` to the names that work; `python .claude/scripts/doctor.py` shows which ones are broken |
+| Every call is blocked: `hook '<x>.py' exited with code N` | a guard crashed (bad edit, missing `harness_config.py`) and a crashed guard must not allow | `doctor.py`, then `python scripts/hook-redteam/runner.py --hooks .claude/hooks`; restore the hook from the template |
+| `doctor.py`: python hooks not behind run-hook.sh | an upgraded project kept its 2.0 `settings.json` | merge `settings.json.new` (`docs/upgrading.md` -> 2.0 to 2.1) |
+| `writing the guard surface (.claude/hooks, .claude/settings*.json) is blocked` | shells may not write hooks or settings | edit `settings.json` / `harness-config.json` with the Write or Edit tool (content-checked); for hook maintenance a human edits the file or starts Claude Code with `QA_HARNESS_ADMIN=1` |
+| The guard-surface block fires on an unrelated `*.py` path while the working directory is `.claude` | a 2.1.0 guard matched the bare file name of an absolute path (red-team cases `p-gs-07`, `b-gs-11`) | work from the project root, or update the two shell guards to a build that passes those cases |
+| `this change to ... LOOSENS the guards` | the Write/Edit content check: a session tried to drop a hook, add an owned repo, widen the allow-globs ... | by design - make the change by hand, or restart Claude Code with `QA_HARNESS_ADMIN=1` for that session |
+| `bash` started from PowerShell exits 127 | `C:\Windows\System32\bash.exe` is the WSL launcher and cannot see Windows paths | use Git Bash (`C:\Program Files\Git\usr\bin\sh.exe`); `doctor.py` and the red-team runner skip the WSL stub |
+| `rebind.py --check`: STALE references | skills copied after a rebind without re-applying it | `python .claude/scripts/rebind.py --apply` (the installer does this automatically) |
+| `verdict_check.py`: INCONSISTENT | the run record contradicts itself (missing evidence file, FAIL without a source, wrong `N of M`, stated verdict not the recomputed one) | fix the record or the verdict - never report until it exits 0 |
+| `load.js`: `is a PROD host` | the URL's host is in the Prod column of `PROJECT-PROFILE.md` §5 | by design - load is never generated against production |
 | Every skill says "run `/configure-project`" | `PROJECT-PROFILE.md` §2 is still `off` everywhere | run the bootstrap; or set the capability `on` by hand and re-run it to generate `.mcp.json` |
 | `Write/Edit … is blocked` while editing the harness itself | the Write/Edit guard only allows the memory folder, the four config files and owned repos | use a Bash heredoc / PowerShell here-string for harness maintenance (sanctioned), or add the path to `owned_repos` |
 | `git <verb> is not on the read-only allow-list` | the Bash guard is an allow-list; fetch/pull/status/log/diff/show/branch -a… are allowed | that is the policy; for your own tooling repo add it to `harness-config.json → owned_repos` |

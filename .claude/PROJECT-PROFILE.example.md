@@ -23,6 +23,7 @@
 - Jira: on
 - SSH: off
 - Demo: on  (node + ffmpeg + edge-tts present; `node .claude/skills/demo-creator/scripts/setup.js --check` printed READY)
+- Mobile: off  (web only)
 
 ## §3 Repositories
 | Repo path | Description | Default branch |
@@ -81,6 +82,7 @@
 - **Auth middleware:** acme-api/middleware/auth.js
 - **Admin controllers:** acme-admin/app/Http/Controllers/
 - **Workers / Lambdas:** acme-api/workers/ (invoice generator, nightly aggregation)
+- **Feature-flag / remote-config source:** table `feature_flag` (`key`, `enabled`, `tenant_id` NULL = global); read with `SELECT key, enabled, tenant_id FROM feature_flag`
 
 ## §10 Key tables & gotchas
 - **Important tables:** user, account, user_account, role, product, order, order_item, subscription, invoice, audit_log

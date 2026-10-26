@@ -1,0 +1,19 @@
+{
+  "skill_name": "prod-sentinel",
+  "evals": [
+    {
+      "id": 0,
+      "name": "first-run-after-release",
+      "prompt": "run the prod sentinel. It is the first run on this project; release 4.2 went out yesterday.",
+      "expected_output": "Checks the Prod-DB capability first and stops with the /configure-project message when it is off; uses only the read-only production tool, with SELECT and information_schema queries that are date-bounded and create no temp tables; performs Step 0, binding each scan S1-S7 to this project's tables from PROJECT-PROFILE.md §10/§11 and recording the bound queries; adapts the SQL to the engine named in §4; because no baseline exists, marks every row EXPECTED -> first run and records the numbers as the baseline, while noting the release as context; prints one table with every row dispositioned; keeps the S6 blind spot as its own row when no terminal writer is known; saves the query text and results under qa-evidence/prod-sentinel-<yyyymmdd>/; writes a dated block into project_prod_sentinel.md in memory (one file for the skill) and verifies it with ls -la.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "after-bulk-template-import",
+      "prompt": "we imported 800 new quote templates into production last night. Is anything broken?",
+      "expected_output": "Reads the recorded baseline from project_prod_sentinel.md instead of recalling it; treats the import as a release (anomaly-disposition Rule 2) and writes down which cardinality, mode or format it introduced that production never held; records the bulk content event in S5; checks the partitions where code assumes exactly one row with GROUP BY ... HAVING COUNT(*) > 1 in S3; compares enum and mode distributions with the baseline in S4; compares failure rates and error signatures in S1 and S2; hands any ARMED pattern to latent-pattern-sweep; ends every anomaly as a ticket id per PROJECT-PROFILE.md §15 or as EXPECTED with a cited source (the import record), never 'probably the import'; prints a small-n partial-period number and marks it 'n too small' instead of alarming; writes nothing to production; updates the memory baseline.",
+      "files": []
+    }
+  ]
+}

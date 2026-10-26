@@ -1,6 +1,6 @@
 ---
 name: test-data-manager
-description: Use when a test needs specific data located, prepared, snapshotted, or restored safely in the target environment — find rich existing records for a scenario, create/modify disposable data under the Mutation Safety Gate with a verified restore, provision a fresh tenant or fixture set, or pick the right sample file class for an upload/import/parser test. Triggers include "find test data for X", "prepare a user with no orders", "I need an account with a zero score", "set up and then restore data for this test", "which fixture covers this input class", "is there a sample file for a scanned PDF".
+description: Use when a test needs data located, prepared, snapshotted or restored safely in the target environment: rich existing records for a scenario, disposable data under the Mutation Safety Gate with a verified restore, a fresh tenant or fixture set, or the right sample file class for an upload or parser test. Triggers include "find test data for X", "prepare a user with no orders", "set up and restore data for this test", "which fixture covers this input class".
 argument-hint: "the data scenario needed (entities + states)"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__filesystem__*", "Skill(qa-standards)", "Write"]
 ---
@@ -143,4 +143,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the entity / scenario / fixture; UPDATE the existing entry (and the fixture registry) instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
 4. **Content:** the scenario, environment, the located / prepared ids and their state, the MAX(id) baselines, confirmation of restoration (verified), new registry rows, any resource quirk learned (port, start command, replica snapshot date) — **never a password, token or root secret**.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

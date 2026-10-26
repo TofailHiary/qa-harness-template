@@ -16,6 +16,12 @@ Compile all QA findings into a structured report with a GO/NO-GO recommendation.
 ## ARGUMENTS
 $ARGUMENTS
 
+## If no arguments provided
+Ask, then STOP until answered:
+> "Which run should I report? Give the run folder (qa-evidence/<run-folder>/) or paste the findings, register and ledger."
+
+Do not guess the scope.
+
 ---
 
 ## Rules
@@ -32,6 +38,11 @@ $ARGUMENTS
 ---
 
 ## Data Sources
+
+**Run record first.** When the run folder holds `run.json`, render the register, the ledger, the findings
+and the confidence line FROM it, after `python .claude/skills/qa-standards/scripts/verdict_check.py
+qa-evidence/<run-folder>` exits 0 - a report that disagrees with its own run record is not published.
+For a trend across runs, `verdict_check.py --summary qa-evidence` prints one line per run.
 
 - **Evidence files:** read from `qa-evidence/` via `mcp__filesystem__read_file` / `mcp__filesystem__list_directory` — the run folder `qa-evidence/<TICKET-KEY or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/`.
 - **Conversation context:** TodoWrite state and test results from the current session (Scope Lock, the six questions, Evidence Ledgers, Execution Registers, bug reports, cross-layer tables produced by the specialist skills, and the audit result).
@@ -158,4 +169,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the feature / endpoint / file path / user-ID / symptom; UPDATE an existing entry with today's report instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
 4. **Content:** feature + date, the final verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**; a skill alias may follow in parentheses) plus the confidence line, every confirmed bug (ID, severity, layer, NEW/DUPLICATE, tracker key), test data used (IDs / account identifiers — never passwords), root-cause `path:line`, coverage gaps carried forward, escape classes checked, regression risks for next time, and any prior memory this report disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

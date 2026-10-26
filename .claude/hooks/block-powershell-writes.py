@@ -12,9 +12,15 @@ Closes the PowerShell gap that would bypass block-bash-writes.py. Same policy so
 Here-string BODIES (@'...'@ / @"..."@) are DATA: documentation text inside a literal that merely
 mentions a git verb must not be read as a command, exactly like heredoc bodies in the Bash guard.
 Converters (ConvertTo-Json etc.) produce strings, not files, and are exempt.
+Opaque execution is refused everywhere (-EncodedCommand, Invoke-Expression/iex of a computed string or
+a pipeline, [scriptblock]::Create). The GUARD SURFACE (.claude/hooks/**, .claude/settings*.json) cannot be
+written from PowerShell unless a human started the session with QA_HARNESS_ADMIN=1. Quoted text given
+to a data-only cmdlet (Select-String, Write-Output, ...) is not read as a git command unless the line
+also executes something.
 Fail-closed on malformed hook input.
 """
 import json
+import os
 import re
 import sys
 import harness_config as hc
@@ -37,6 +43,7 @@ MUTATING_GIT = ["commit", "push", "merge", "rebase", "cherry-pick", "am", "apply
                 "restore", "checkout", "switch", "add", "rm", "mv", "update-ref", "clean",
                 "reset", "stash", "worktree", "notes"]
 MUTATING_NPM = ["publish", "version", "ci"]
+ADMIN = os.environ.get("QA_HARNESS_ADMIN") == "1"
 
 
 def _block(reason):
@@ -91,7 +98,7 @@ def owned_context(cmd, cwd):
 def check_git_mutations(cmd):
     for seg in re.split(r"(?:;|\n|\|\||&&)", cmd):
         for sub in MUTATING_GIT:
-            pat = r"(?i)(?:^|[^A-Za-z.])git\s+(?:-[A-Za-z]\s+\S+\s+|--[A-Za-z-]+(?:=\S+)?\s+)*" + re.escape(sub) + r"(?![A-Za-z-])"
+            pat = r"(?i)(?:^|[^A-Za-z.])git(?:\.exe)?\s+(?:-[A-Za-z]\s+\S+\s+|--[A-Za-z-]+(?:=\S+)?\s+)*" + re.escape(sub) + r"(?![A-Za-z-])"
             if re.search(pat, seg):
                 # listing forms stay allowed
                 if sub == "stash" and re.search(r"git\s+stash\s+(list|show)\b", seg, re.I):
@@ -101,6 +108,10 @@ def check_git_mutations(cmd):
                 if sub == "notes" and re.search(r"git\s+notes\s+(list|show)\b", seg, re.I):
                     continue
                 _block("READ-ONLY QA (PowerShell): git %s is blocked." % sub)
+        if re.search(r"(?i)\b(?:Start-Process|saps|start)\b[^;|\n]*\bgit(?:\.exe)?\b", seg):
+            args = re.split(r"(?i)\bgit(?:\.exe)?\b", seg, 1)[-1]
+            if any(re.search(r"(?i)(?<![A-Za-z-])" + re.escape(v) + r"(?![A-Za-z-])", args) for v in MUTATING_GIT):
+                _block("READ-ONLY QA (PowerShell): Start-Process git with a mutating verb is blocked.")
         if re.search(r"(?i)(?:^|[^A-Za-z])git\s+branch\s+(-D|-d|-m|-M|--delete|--move|[A-Za-z0-9_./-]+\s*$)", seg):
             if not re.search(r"(?i)git\s+branch\s+(-a|-r|-v|-vv|--list|--contains|--merged|--no-merged|--show-current|--format)", seg):
                 _block("READ-ONLY QA (PowerShell): git branch create/delete/rename is blocked.")
@@ -133,7 +144,100 @@ PS_NOT_A_WRITE = ("ConvertTo-Json", "ConvertTo-Csv", "ConvertTo-Xml", "ConvertFr
 PS_NEEDS_DEST = {"Invoke-WebRequest": "-outfile", "Invoke-RestMethod": "-outfile",
                  "Tee-Object": "-filepath", "Start-Process": "-redirectstandardoutput"}
 PS_INTERP = r"(?:^|[^A-Za-z0-9_./-])(python[0-9.]*|node|perl|ruby|php)(?:\s|$)"
-PS_INTERP_WRITE = r"(?:open\s*\([^)]*[\x22\x27][wax]|writeFileSync|appendFileSync|\.write\s*\(|WriteAllText)"
+PS_INTERP_WRITE = (r"(?:open\s*\([^)]*[\x22\x27][wax+]|\.write(?:_text|_bytes)?\s*\(|\.(?:unlink|rmdir|mkdir|touch|rename|symlink_to|hardlink_to)\s*\("
+                   r"|os\.(?:remove|rename|renames|replace|unlink|rmdir|removedirs|makedirs|mkdir|truncate|chmod)"
+                   r"|shutil\.(?:copy\w*|move|rmtree)"
+                   r"|(?:writeFile|appendFile|rmSync|rmdirSync|unlinkSync|mkdirSync|renameSync|copyFileSync|cpSync|truncateSync|createWriteStream)\b"
+                   r"|\b(?:fs|fsp|promises)\.(?:rm|rmdir|unlink|mkdir|rename|copyFile|cp|truncate|writeFile|appendFile)\s*\("
+                   r"|File\.(?:write|delete|rename)|FileUtils\.|WriteAllText|WriteAllBytes)")
+
+
+OPAQUE = [
+    (r"(?i)\b(?:pwsh|powershell)(?:\.exe)?\b[^;|\n]*\s-(?:e|ec|en|enc|encodedcommand)\s+[A-Za-z0-9+/=]{8,}", "an encoded PowerShell command"),
+    (r"(?i)\|\s*(?:iex|Invoke-Expression)\b", "a pipeline into Invoke-Expression"),
+    (r"(?i)\[scriptblock\]::Create", "a script block built from a string"),
+    (r"(?i)\bFromBase64String\b[^;\n]*(?:iex|Invoke-Expression|Invoke-Command|\.Invoke\()", "a decoded payload that is executed"),
+]
+
+
+def check_opaque(cmd):
+    for pat, why in OPAQUE:
+        if re.search(pat, cmd):
+            _block("READ-ONLY QA (PowerShell): %s is blocked - the guard cannot inspect what would run." % why)
+    for m in re.finditer(r"(?i)\b(?:Invoke-Expression|iex)\b\s*(?:-Command\s+)?([^;\n]*)", cmd):
+        arg = m.group(1).strip()
+        literal = re.fullmatch(r"\x27[^\x27]*\x27|\x22[^\x22$`]*\x22", arg)
+        if not literal:
+            _block("READ-ONLY QA (PowerShell): Invoke-Expression of a computed string is blocked - "
+                   "the guard cannot inspect what would run. Run the command in plain text instead.")
+
+
+_PS_DATA = {"select-string", "sls", "write-output", "write-host", "echo", "write-verbose", "write-information",
+            "write-warning", "out-host"}
+_PS_EXEC_HINT = re.compile(
+    r"(?i)\b(?:Invoke-Expression|iex|Invoke-Command|icm|Start-Process|saps|Start-Job|powershell|pwsh)\b"
+    r"|(?:^|[^&])&(?!&)|\[scriptblock\]|\.Invoke\(|\bcmd(?:\.exe)?\s+/c\b"
+    r"|\|\s*(?:bash|sh|python[0-9.]*|node|perl|ruby)\b|(?:^|[;|\n]\s*)\.\s+\S")
+
+
+def mask_inert_quotes(cmd):
+    if _PS_EXEC_HINT.search(cmd):
+        return cmd
+    out = []
+    for part in re.split(r"(&&|\|\||;|\||\n)", cmd):
+        toks = part.strip().split()
+        first = toks[0].lower() if toks else ""
+        if first in _PS_DATA:
+            part = re.sub(r"\x22(?:[^\x22`]|`.)*\x22|\x27(?:[^\x27]|\x27\x27)*\x27", '""', part)
+        out.append(part)
+    return "".join(out)
+
+
+GSW = r"\.claude[/\\](?:hooks[/\\][^\s\x22\x27|;)]*|settings(?:\.local)?\.json)"
+# Relative targets, used only when the working directory (or a Set-Location target) is .claude or .claude\hooks.
+# The look-behind keeps an absolute path elsewhere (C:\work\x.py, $dir\x.py) from matching its file name.
+_B = r"(?<![\w$./\\:-])"
+GSW_REL_HOOKS = _B + r"(?:\.[/\\])?(?:[A-Za-z0-9_.-]+\.(?:py|sh|js)|harness-config\.json)(?![\w.-])"
+GSW_REL_CLAUDE = _B + r"(?:\.[/\\])?(?:hooks[/\\][^\s\x22\x27|;)]+|settings(?:\.local)?\.json)(?![\w.-])"
+
+
+def _gs_write(cmd, t):
+    pats = [
+        r"(?i)\b(?:Set-Content|Add-Content|Out-File|Clear-Content|Remove-Item|Rename-Item|New-Item|Tee-Object|sc|ac|ri|rni|ni|del|erase|rm|rmdir|rd|clc)\b[^;|\n]*" + t,
+        r"(?i)\b(?:Copy-Item|Move-Item|cp|copy|cpi|mv|move|mi)\b[^;|\n]*(?:-Destination\s+[\x22\x27]?[^\s;|]*" + t
+        + r"|\s[\x22\x27]?[^\s;|]*" + t + r"[^\s;|]*[\x22\x27]?\s*(?:$|[;|\n]))",
+        r">[>]?\s*[\x22\x27]?[^\s;|]*" + t,
+        r"(?i)\]::(?:WriteAll\w*|AppendAll\w*|Delete|Move|Copy|Replace|Create\w*|Open\w*)\s*\([^;\n]*" + t,
+        r"(?i)StreamWriter[^;\n]*" + t,
+        r"(?i)Invoke-(?:WebRequest|RestMethod)\b[^;|\n]*-OutFile\s+[\x22\x27]?[^\s;|]*" + t,
+    ]
+    if any(re.search(p, cmd) for p in pats):
+        return True
+    return bool(re.search(t, cmd, re.IGNORECASE) and re.search(PS_INTERP, cmd, re.IGNORECASE)
+                and re.search(PS_INTERP_WRITE, cmd, re.IGNORECASE))
+
+
+def check_guard_surface(cmd, cwd):
+    if ADMIN:
+        return
+    cwd_n = (cwd or "").replace(chr(92), "/").rstrip("/")
+    in_hooks = bool(re.search(r"/\.claude/hooks$", cwd_n, re.IGNORECASE))
+    in_claude = bool(re.search(r"/\.claude$", cwd_n, re.IGNORECASE))
+    for tgt in re.findall(r"(?i)(?:^|[;|&])\s*(?:Set-Location|cd|Push-Location|pushd|sl)\s+[\x22\x27]?([^;|&\s\x22\x27]+)", cmd):
+        tgt = tgt.replace(chr(92), "/").rstrip("/").lower()
+        if tgt.endswith(".claude/hooks") or (in_claude and tgt in ("hooks", "./hooks")):
+            in_hooks = True
+        elif tgt.endswith(".claude"):
+            in_claude = True
+    hit = re.search(GSW, cmd, re.IGNORECASE) and _gs_write(cmd, GSW)
+    if not hit and in_hooks:
+        hit = _gs_write(cmd, GSW_REL_HOOKS)
+    if not hit and in_claude:
+        hit = _gs_write(cmd, GSW_REL_CLAUDE)
+    if hit:
+        _block("READ-ONLY QA (PowerShell): writing the guard surface (.claude/hooks, .claude/settings*.json) "
+               "is blocked. Edit settings.json / harness-config.json with the Write or Edit tool (the change is "
+               "checked), or have a human start the session with QA_HARNESS_ADMIN=1 for hook maintenance.")
 
 
 def check_source_repo_writes(cmd, cwd):
@@ -155,7 +259,10 @@ def check_source_repo_writes(cmd, cwd):
     for c in PS_WRITE_CMDLETS:
         if c in PS_NEEDS_DEST and PS_NEEDS_DEST[c] not in low:
             continue
-        if c[0].isalpha():
+        if c[0].isalpha() and "-" not in c:
+            # a short alias (md, rm, cp, sc ...) counts only in COMMAND position - `*.md` is not mkdir
+            hit = bool(re.search(r"(?:^|[;|&({\n]\s*)" + re.escape(c) + r"(?![A-Za-z0-9_.-])", cmd, re.IGNORECASE))
+        elif c[0].isalpha():
             hit = bool(re.search(r"(?:^|[^A-Za-z0-9_-])" + re.escape(c) + r"(?![A-Za-z0-9_-])", cmd, re.IGNORECASE))
         else:
             hit = c.lower() in low    # .NET forms contain [ ] : - plain containment
@@ -167,6 +274,8 @@ def check_source_repo_writes(cmd, cwd):
     if re.search(r"(?:\[System\.IO\.)?File(?:\]::|\.)+?(?:WriteAllText|WriteAllBytes|AppendAllText|"
                  r"AppendAllLines|Create|Copy|Delete|Move|Open)", cmd):
         _block("READ-ONLY QA (PowerShell): .NET File API write/delete/move with a protected repo in reach is blocked.")
+    if re.search(r"(?i)Directory\]::(?:Delete|Move|CreateDirectory)", cmd):
+        _block("READ-ONLY QA (PowerShell): .NET Directory API delete/move/create with a protected repo in reach is blocked.")
     if re.search(r"(?:StreamWriter|BinaryWriter|TextWriter)", cmd):
         _block("READ-ONLY QA (PowerShell): .NET StreamWriter/BinaryWriter with a protected repo in reach is blocked.")
     if re.search(PS_INTERP, cmd_norm, re.IGNORECASE) and re.search(PS_INTERP_WRITE, cmd, re.IGNORECASE):
@@ -178,9 +287,12 @@ def main():
     if not cmd:
         sys.exit(0)
     scan = strip_herestring_bodies(cmd)   # literal bodies are DATA, not commands
-    if not owned_context(scan, cwd):
-        check_git_mutations(scan)
-        check_npm_mutations(scan)
+    check_opaque(scan)
+    check_guard_surface(scan, cwd)
+    scan_git = mask_inert_quotes(scan)    # quoted text given to a data-only cmdlet is not a command
+    if not owned_context(scan_git, cwd):
+        check_git_mutations(scan_git)
+        check_npm_mutations(scan_git)
     check_source_repo_writes(scan, cwd)
     sys.exit(0)
 

@@ -1,6 +1,6 @@
 ---
 name: test-cases-generator
-description: Use when you need an executable, traceable test plan before testing a user story, feature, PR, API, or bug fix — produces prioritized, categorized cases mapped to the right execution tool, each with steps + expected result + evidence required. Triggers include "generate test cases", planning coverage for a change, and Phase 0 of /full-qa or /qa-validate.
+description: Use when an executable, traceable test plan is needed before testing a user story, feature, PR, API or bug fix: prioritized cases, each with steps, the expected result and its source, the execution tool and the evidence it must leave. Triggers include "generate test cases", "plan coverage for this change", and the test-plan step of /full-qa or /qa-validate.
 argument-hint: "user story, feature, PR, or API endpoint"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(qa-standards)", "Write"]
 ---
@@ -10,8 +10,14 @@ allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_qu
 > **Capability note:** This skill is **always on** (utility). Read `PROJECT-PROFILE.md` §2 (Capability Map)
 > first and skip the investigation steps whose capability is `off` — no DB → no `DESCRIBE`/`SELECT`
 > (mark test data "NEEDS PREP / unverified"); no Postman → enumerate the API from the routes file; no Jira →
-> the user pastes the story and AC. Say which steps were skipped in the output. If `PROJECT-PROFILE.md` is
-> blank, STOP and tell the user to run `/configure-project`.
+> the user pastes the story and AC. Say which steps were skipped in the output. If `PROJECT-PROFILE.md` exists
+> but is blank, STOP and tell the user to run `/configure-project`.
+>
+> **No profile at all? (user-level install - there is no `.claude/PROJECT-PROFILE.md`.)** Do not stop.
+> Ask once for what this skill needs - what the feature does, who it affects, where it lives, and where the acceptance criteria come from - label every conclusion that rests on those
+> answers INFERRED, skip the steps whose tools are not available and say which, and if no memory
+> folder exists say in one line that memory was not persisted. A profile that EXISTS but is blank still
+> means: run `/configure-project`.
 
 Generate structured, **executable** test cases in Markdown tables (NOT code blocks).
 
@@ -21,7 +27,8 @@ Test-Case Quality Bar, Evidence Ledger, Authoritative Source Hierarchy, Executio
 ## ARGUMENTS
 $ARGUMENTS
 
-If input is insufficient, ask for: **what** it does, **who** it affects (roles), **where** it lives
+## If no arguments provided
+Ask, then STOP until answered - never generate cases for a guessed feature. If input is insufficient, ask for: **what** it does, **who** it affects (roles), **where** it lives
 (pages/routes/APIs). If the source is a ticket in the issue tracker (`PROJECT-PROFILE.md` §15), pull the
 acceptance criteria with the tracker tool (`mcp__claude_ai_Atlassian__getJiraIssue` when Jira is `on`;
 otherwise ask the user to paste the story). Read the ticket **comments** too — the latest developer comment
@@ -62,10 +69,18 @@ Before writing any case, enumerate **from the CODE** the dimensions that select 
 them: **origin × mode × type × action** at minimum. Examples of dimensions: origin = existing / add-new /
 clone / file-import / search-import; mode = online / offline (or mode A / mode B from the enum the code
 switches on); type = the entity sub-types the handler branches on; action = per-item save / bulk save /
-next-step. Add any further dimension the code branches on (role, feature flag, tenant setting).
+next-step. Add any further dimension the code branches on (role, tenant setting).
+- **Configuration / feature-flag dimension (required when `PROJECT-PROFILE.md §9` names a flag source):** every
+  flag or config value the changed code reads is a dimension of its own - its states (on / off / variant /
+  unset) multiply the matrix like any enum. Read the live values for the target env (`env-health`
+  prints them) and test the shipped state plus each state the change introduces; a flag state nobody
+  tested is a named gap, never an implied PASS.
 
 - **Print the matrix with its cell count.** The Scope Lock's **M** is that number, not an estimate, and
   every cell is either covered by a TC ID or listed as a named gap.
+- **Record it in the run record:** `run.json` -> `matrix` = `{source, dimensions, cells, excluded:[{cell, reason}]}`
+  (`qa-standards/references/run-record.md`), and give every case the `cells` it covers. `verdict_check.py`
+  then proves every non-excluded cell has a register row, so `M` can be recomputed later instead of trusted.
 - *(illustrative)* a plan once declared "7 of 12 covered" from intuition; the code-derived matrix had 24
   cells, and the 5 cells nobody had listed held the data-loss regression that escaped.
 - Dimensions come from `switch`/`if` on enum columns, route parameters, request-body discriminators and
@@ -172,4 +187,5 @@ be persisted -> **HALT and tell the user**.
 4. **Content:** feature + date, scope/AC covered, the code-derived matrix and its M, # cases per category,
    highest risk areas, open questions and how they were resolved (or INFERRED), any test data that NEEDS
    PREP, blast-radius areas to regression-test next time.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

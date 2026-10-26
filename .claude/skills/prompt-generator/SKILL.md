@@ -1,6 +1,6 @@
 ---
 name: prompt-generator
-description: Use when a QA run needs its execution prompt written before anything is tested — Step 0 of /full-qa — or whenever the owner says "generate the prompt", "prepare the QA prompt for APP-nnn / PR #n", "write the execution prompt", or hands over a story, bug, PR or release that a fresh Claude Code session or another model will test. Produces the prompt only; it never executes tests (that is /full-qa or /qa-validate).
+description: Use when a QA run needs its execution prompt written before anything is tested — the first step of /full-qa — or the owner says "generate the prompt", "prepare the QA prompt for APP-nnn / PR #n", "write the execution prompt", or hands over a story, bug, PR or release that a fresh session or another model will test. It writes the prompt only and never executes tests.
 argument-hint: "ticket id, PR number, feature / bug / release description, plus any owner constraints (mode, env, exclusions, deadline)"
 allowed-tools: ["Read", "Grep", "Glob", "Bash", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "mcp__mcp_server_mysql__mysql_query", "mcp__postman-api-mcp__*", "mcp__filesystem__*", "Skill(qa-standards)", "Write"]
 ---
@@ -11,8 +11,14 @@ allowed-tools: ["Read", "Grep", "Glob", "Bash", "mcp__github__*", "mcp__claude_a
 > depends on a capability from `PROJECT-PROFILE.md` §2: the ticket row on **Jira** (the tracker in §15),
 > the code row on **GitHub** or **LocalRepos**, the data and fixture rows on **DB**, the contract lookup
 > on **Postman**. When a capability is `off`, that row is filled as "not available: <capability> off →
-> agent must <action>" — never skipped silently. If `PROJECT-PROFILE.md` is blank, STOP and tell the
-> user to run `/configure-project`.
+> agent must <action>" — never skipped silently. If `PROJECT-PROFILE.md` exists but is blank, STOP and
+> tell the user to run `/configure-project`.
+>
+> **No profile at all? (user-level install - there is no `.claude/PROJECT-PROFILE.md`.)** Do not stop.
+> Ask once for what this skill needs - the ticket or story text, the repos or paths to read, and the target environment - label every conclusion that rests on those
+> answers INFERRED, skip the steps whose tools are not available and say which, and if no memory
+> folder exists say in one line that memory was not persisted. A profile that EXISTS but is blank still
+> means: run `/configure-project`.
 
 One execution-ready prompt, grounded in this setup, before any test runs. The prompt is what a fresh Claude Code session (or another model) receives, so it must stand alone: every id, path, URL, constraint, fixture and gate it needs is inside it, and everything it cannot know is named as something to retrieve.
 

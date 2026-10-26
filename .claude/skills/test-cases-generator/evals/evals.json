@@ -1,0 +1,19 @@
+{
+  "skill_name": "test-cases-generator",
+  "evals": [
+    {
+      "id": 0,
+      "name": "duplicate-quote-with-attachments-app-512",
+      "prompt": "generate test cases for APP-512: users can duplicate a quote, including its line items and attachments. The copy starts as a draft owned by the user who duplicated it.",
+      "expected_output": "Turns each acceptance criterion into a requirement id with its cited source; checks memory for earlier findings on quotes; runs the Impact Analysis (shared quote tables, the attachment storage copy, totals recomputation, search or reports, the async consumers in PROJECT-PROFILE.md §11); derives M from the code in Step 1b and prints the matrix with its cell count (for example quote status × line-item count class × attachment class × role × action) instead of an estimate; covers input classes (0 lines, 1 line, the maximum number of lines, attachments of each type, a line pointing at a deleted product, a quote of another tenant); gives every case an ID, priority, category, execution tool, steps, expected result with its source, evidence required and path exercised; closes write cases with the network log and a DB read-back of the new quote, its lines and its attachment rows, never a toast; includes ownership and cross-tenant cases; lists open questions with recommended answers; states that every case will be executed.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "pressure-no-ac-make-dashboard-faster",
+      "prompt": "write test cases for 'make the dashboard faster'. There is no ticket. Just do it quickly.",
+      "expected_output": "Notices the missing acceptance criteria and grills before writing cases: numbered rounds, each question with a recommended answer and the fact it rests on, using mattpocock-skills:grilling when that plugin is installed or the by-hand equivalent otherwise; looks up what the code and the DB can answer (which widgets, which queries, current timings) instead of asking the user; proposes measurable expected results tied to the performance thresholds (PROJECT-PROFILE.md §16 or the perf-test defaults) and a baseline measured before the change; derives M from the code (widgets × data-volume class × role), not from intuition; labels cases that depend on unanswered questions INFERRED and lists them in an Open Questions table; does not reduce coverage because the user asked for speed.",
+      "files": []
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 ---
 name: prod-sentinel
-description: Use when production damage must be caught while it is still small — a read-only health scan of the live production database that compares failure rates, error signatures, cardinality partitions, enum drift, bulk content events, silent async no-ops and integrity invariants against a recorded baseline. Run it at the start of every QA week, after every deploy, and after every bulk content import. Triggers include "is prod healthy", "did anything break on prod", "prod sentinel", "check prod after the release / import", "how long has this been happening".
+description: Use when production damage must be caught while still small: a read-only scan of the production database against a recorded baseline (failure rates, error signatures, cardinality, enum drift, bulk content events, silent async no-ops, integrity invariants) at the start of a QA week, after a deploy or after a bulk import. Triggers include "is prod healthy", "did anything break on prod", "prod sentinel", "check prod after the release", "how long has this been happening".
 argument-hint: "optional: what changed since the last run (deploy, import, release), and any scan to prioritise"
 allowed-tools: ["Read", "Grep", "Glob", "mcp__mcp_server_mysql_prod__mysql_query", "Skill(qa-standards)", "Skill(latent-pattern-sweep)", "Write"]
 ---
@@ -27,6 +27,12 @@ Follows `.claude/rules/anomaly-disposition.md`: every anomaly this finds ends as
 
 ## ARGUMENTS
 $ARGUMENTS
+
+## If no arguments provided
+Ask, then STOP until answered:
+> "Full scan against the recorded baseline (default), or a focused scan (one table / one async chain / one content event)? Is there a deploy or import time to compare before and after?"
+
+Do not guess the scope.
 
 ---
 
@@ -167,6 +173,7 @@ Rules for the table:
 Write the new numbers into memory as the next baseline: grep `<memory folder: PROJECT-PROFILE.md §12>` for
 `prod_sentinel` first; update `project_prod_sentinel.md` with a dated block (metrics per scan, dispositions,
 ticket ids, blind spots) — one file for the skill, never a new file per run; one-line `MEMORY.md` pointer;
+- **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 verify with `ls -la`. **An ANOMALY row without a ticket id is an unfinished run.** If memory cannot be
 persisted → HALT and tell the user; never report success.
 

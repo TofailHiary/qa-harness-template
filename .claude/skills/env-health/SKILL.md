@@ -1,6 +1,6 @@
 ---
 name: env-health
-description: Use at the very start of a QA session to confirm the environment is testable before any testing begins — MCP servers reachable, repos on the correct branch and current, app and API responding, DB reachable, auth working, the change under test actually deployed, nothing shipping untested, and production not already bleeding. Triggers include "check the environment", "is the env ready", "preflight", "are we good to test", "is the fix deployed yet", "what is about to ship", or the first step before /full-qa.
+description: Use at the start of a QA session, before any testing, to confirm the environment is testable — MCP servers, repo branches, app / API / DB reachability, auth, whether the change under test is really deployed, untested items about to ship, production already failing. Triggers include "check the environment", "is the env ready", "preflight", "are we good to test", "is the fix deployed yet", "what is about to ship".
 argument-hint: "optional: environment (test / dev / prod)"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__http-client__*", "mcp__playwright__*", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(qa-standards)", "Skill(prod-sentinel)", "Skill(latent-pattern-sweep)"]
 ---
@@ -39,6 +39,8 @@ $ARGUMENTS  (default to Test if unspecified)
    - **Async workers / serverless functions (`PROJECT-PROFILE.md §11`):** the deployed version or alias, when reachable; otherwise record "worker version not verifiable" as Remaining Risk, not as GREEN.
    - **Deploy pending:** do not spin. If the session has a loop / timer facility, re-run only this check on an interval and resume the run when the fix string is live; otherwise report the run as PARTIAL with the deploy as the named blocker.
 
+5c. **Feature flags / remote config** — *only when `PROJECT-PROFILE.md §9` names a flag source.* Read the live value of every flag the change under test reads, for the target env (and tenant, when flags are per tenant), and print them in the readiness table. A flag in a state nobody planned for is a blocker for the cases that depend on it, not a footnote; `test-cases-generator` uses these values as the configuration dimension of its matrix.
+
 6. **Release radar** — *optional; Jira / issue tracker on (`PROJECT-PROFILE.md §15`).* What is about to ship that QA has not touched? Search the tracker live (`mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql`, or the tracker API named in §15) for issues in the current release / fixVersion whose status is one of the pre-deploy states named in §15 (e.g. Ready for QA, Ready to Deploy, Dev Done). For every hit, read its comments and history: no QA comment and no QA transition = shipping untested -> a RED row with the ticket key. Print the baseline even when it is clean ("N open in the release, k in pre-deploy states, 0 untouched"). *(illustrative)* a ticket sat in the ready-to-deploy state with zero QA comments; its fix carried a data-loss regression that reached production. This is escape class **E11** (qa-standards -> Escape classes & their gates). A remembered ticket status is not evidence — read it live (qa-standards -> Fresh vs Historical).
 
 7. **Prod sentinel** — *optional; Prod-DB on (`PROJECT-PROFILE.md §6`).* Is production already bleeding? Run `Skill(prod-sentinel)` when it is installed — at minimum its failure-rate scan and its bulk-content-event scan. By-hand equivalent against the read-only prod DB: (a) group the project's main error / event log table (`PROJECT-PROFILE.md §10`) by month × status for the last 120 days and flag any month whose error share exceeds the trailing 3-month mean by 15 points; (b) count new rows per day in each content / template table (§10) for the last 60 days and flag any day with 10 or more — that is a content import, i.e. a data release. **A content import in the last 14 days is a stop condition for GO on anything that touches the imported content until `Skill(latent-pattern-sweep)` has run against it.** This is escape class **E10**. Print the numbers even when nothing is alarming — the next run needs them as its baseline.
@@ -67,3 +69,13 @@ $ARGUMENTS  (default to Test if unspecified)
 This is a preparatory utility (like `sync-repos`) — it produces a readiness verdict, not bug findings, so checks 1–5 need no Evidence Ledger or memory ritual. If a check is RED, that RED item becomes a documented stop condition for the run. Two exceptions:
 - **Check 7 ran:** write the sentinel numbers into memory (`<memory folder: PROJECT-PROFILE.md §12>`) as the next baseline, per `prod-sentinel`'s own ritual; an anomaly row without a ticket id is an unfinished run.
 - **Check 6 found an untested ticket:** report it to the user and to the orchestrator as a RED row; any comment or transition on the ticket follows the issue tracker rules in `PROJECT-PROFILE.md §15` and happens only when the user asks.
+
+## Post-Session (MANDATORY — enforced)
+
+Update auto-memory before claiming completion — full ritual in qa-standards -> Memory Ritual. If it cannot be persisted -> **HALT and tell the user**; never report success.
+
+1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool; grep the folder first and UPDATE an existing entry instead of filing a duplicate.
+2. **Update** `MEMORY.md` with a one-line (<=200-char) dated pointer.
+3. **Content:** environment + date, each check and its status, the commit deployed per surface, anything that blocked testing and how it was unblocked (a recurring blocker is a feedback memory).
+4. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows a non-zero size, else HALT.

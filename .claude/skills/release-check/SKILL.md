@@ -3,7 +3,7 @@ name: release-check
 description: Use when signing off a large, risky release/batch before it ships to production and you need an exhaustive FILE-BY-FILE, TABLE-BY-TABLE, API-BY-API checklist plus a formal release sign-off report and APPROVED / NOT-APPROVED call. Triggers include "release sign-off", "validate the release", "release-check a release", "is this batch safe to ship". Reach for /full-qa for a single story/PR GO/NO-GO; use this when the scope is a whole release that must be ZERO-bug in prod.
 argument-hint: "release name or list of changes"
 disable-model-invocation: true
-allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "Task", "Agent", "Agent(qa-verdict-auditor)", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(regression-runner)", "Skill(visual-regression)", "Skill(a11y-test)", "Skill(observability-check)", "Skill(ai-output-eval)", "Skill(latent-pattern-sweep)", "Skill(prod-sentinel)", "Skill(bug-verifier)", "Skill(bug-report)", "Write"]
+allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "Agent", "Agent(qa-verdict-auditor)", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(regression-runner)", "Skill(visual-regression)", "Skill(a11y-test)", "Skill(observability-check)", "Skill(ai-output-eval)", "Skill(latent-pattern-sweep)", "Skill(prod-sentinel)", "Skill(bug-verifier)", "Skill(bug-report)", "Write"]
 ---
 
 # Release Validation (Full Checklist)
@@ -71,6 +71,15 @@ For the WHOLE change set, trace the blast radius per qa-standards -> Impact Anal
 If Jira is on, pull acceptance criteria for each ticket in the release via `mcp__claude_ai_Atlassian__*` (tracker: `PROJECT-PROFILE.md §15`) — read each whole thread; a clarifying dev/PO comment often overrides a stale AC. Re-read every ticket LIVE this run: a remembered status is not evidence (qa-standards -> Fresh vs Historical).
 
 ---
+
+## Run record & resume (`run.json`)
+Keep `qa-evidence/<run-folder>/run.json` (`qa-standards/references/run-record.md`): create it at Scope Lock
+(one register row per in-scope area, NOT YET VERIFIED until run, plus the Step 1b matrix), update it after
+every phase (that update is the checkpoint), and if it already exists with `checkpoint.next_step` set,
+RESUME from that step and say so. Before the verdict,
+`python .claude/skills/qa-standards/scripts/verdict_check.py qa-evidence/<run-folder>` must exit 0 - it
+recomputes the confidence line and the run verdict; never type them by hand. `--package` then writes the
+`package.md` the independent audit reads.
 
 ## Environment & Credentials (Embedded for Fork Context)
 
@@ -154,11 +163,7 @@ For EACH affected UI area also run: **`Skill(visual-regression)`** (layout / ove
 
 ## Testing Types (ALL REQUIRED)
 
-Smoke, Sanity, Regression, End-to-End, Positive, Negative, Edge Case, Full Cycle — all must pass for every area in scope. Cover every cell of the coverage matrix (roles, states incl. empty/single/many/null-vs-zero, inputs incl. negative/boundary, full flow, cross-tenant). Derive the denominator from the code (origin x mode x type x action), never by guessing (E12). Partially-empty beats empty: the row that exists with one field absent or in a third state is where defects live (Judgement Discipline #2).
-
-**A release is always a regression -> `Skill(regression-runner)`** over the Step 0b indirect blast radius — actively re-test the shared components / endpoints / tables / async jobs / caches / downstream reports each change touches but is not "about". A shared component fixed is not every consumer fixed — each consumer in scope is its own register row (Judgement Discipline #4).
-
----
+> Moved to [`references/testing-types.md`](references/testing-types.md). Every testing type listed there is REQUIRED; each gets register rows.
 
 ## Consistency Verification
 
@@ -187,10 +192,8 @@ Every finding (bug OR proof-of-correct) maps to >=1 evidence row. **No evidence 
 Attachments under `qa-evidence/<RELEASE-SLUG>-<yyyymmdd>/` (or `qa-evidence/BUG-YYYYMMDD-HHMMSS-<yyyymmdd>/` per bug). Write them via `mcp__filesystem__write_file` (the read-only hook blocks `Write`/`Edit` for `qa-evidence/`); pass `filename: qa-evidence/<RELEASE-SLUG>-<yyyymmdd>/<name>.png` to Playwright screenshots (a bare filename saves to the repo root). Reports stay in the chat.
 
 ## Plugins & escalation (optional enhancers — `PROJECT-PROFILE.md §17`)
-- Non-obvious root cause -> `superpowers:systematic-debugging` if the `superpowers` plugin is installed; otherwise by hand: 3-5 ranked falsifiable hypotheses, one variable at a time, accept only a reproduced cause.
-- Large independent fan-out across release areas -> `superpowers:dispatching-parallel-agents` if installed (or the `qa-team` skill) — only when `PROJECT-PROFILE.md §16` allows sub-agents; otherwise sequential in-session.
-- Before declaring APPROVED -> `superpowers:verification-before-completion` if installed; otherwise by hand: re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-8 against your own conclusions and quote the evidence row behind every PASS.
-- Ambiguous AC with the owner present -> `Skill(mattpocock-skills:grilling)` if the `mattpocock-skills` plugin is installed (numbered rounds, recommended answer per question, facts looked up in-session); otherwise by hand: numbered questions with your recommended reading, each answer cited as the source of its expected result. Owner absent: record the ambiguity, take the code-derived reading, label it INFERRED.
+
+> Moved to [`references/sign-off-template.md`](references/sign-off-template.md). Optional plugin enhancers (PROJECT-PROFILE.md §17) with their by-hand equivalents.
 
 ---
 
@@ -200,7 +203,7 @@ A release sign-off is the highest-stakes verdict this harness produces. **It MUS
 
 Before writing the report, hand over ONLY the package: the Scope Lock, the acceptance criteria / authoritative sources, every finding (bugs AND passes), the Evidence Ledger, the Execution Register, and the proposed GO/NO-GO. **Never hand over your reasoning or transcript** — that is what makes the audit independent.
 
-- **Sub-agents allowed (`PROJECT-PROFILE.md §16`):** dispatch the `qa-verdict-auditor` sub-agent via the `Agent` tool. It runs in a FRESH context as a judge, not a second QA run (its cost discipline is in its definition).
+- **Sub-agents allowed (`PROJECT-PROFILE.md §16`):** dispatch the `qa-verdict-auditor` sub-agent via the `Agent` tool with the path of `qa-evidence/<run-folder>/package.md` (from `verdict_check.py --package`). It runs in a FRESH context as a judge, not a second QA run (its cost discipline is in its definition).
 - **Sub-agents disabled (§16):** audit in-session — re-derive the verdict from the package alone, item by item against qa-standards -> Verdict Integrity #1-8 and the Completion Gate, and write `AUDIT_PASSED` / `AUDIT_FAILED` with the challenges.
 - **`AUDIT_FAILED`** -> the sign-off is BLOCKED. Resolve every challenge with evidence, then re-audit.
 - **`AUDIT_PASSED`** -> proceed, and record in the sign-off that an independent audit ran, with its date and mode (sub-agent / in-session).
@@ -216,24 +219,7 @@ Reproduce first-hand anything you act on — an auditor challenge is a lead, not
 
 ## Release Sign-Off Report
 
-Generate a report containing:
-
-1. **Header** — release name, date, environment, build(s) under test, validated by, QA mode (release), capabilities skipped.
-2. **Summary** — total items validated, passed, failed, blocked, verdict **GO / NO-GO / PARTIAL** per qa-standards -> Verdict Contract and the project's verdict policy (`PROJECT-PROFILE.md §16`; default strict binary — "APPROVED / NOT APPROVED" in parentheses) + the confidence line `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: …` + the Execution Register + the audit result + which escape classes (qa-standards -> Escape classes & their gates) were actively checked.
-3. **Repository Status** — table of all repos with branch, sync status, last commit.
-4. **Files Reviewed** — table with file, status, issues.
-5. **Tables Checked** — table with table name, schema, data, integrity, status.
-6. **APIs Tested** — table with endpoint, method, auth, response, status.
-7. **UI Flows Tested** — table with flow, path exercised, input class, status, console errors, network issues.
-8. **Test Results** — table with test type, total, passed, failed.
-9. **Bugs Found** — list each with title, severity, layer (FE/BE/Admin/Report/DB/Both), NEW/DUPLICATE, status.
-10. **Evidence Ledger** — the table above (every finding AND every PASS, with provenance).
-11. **Coverage Gaps** — any dimension not tested (an untested dimension is never an implied PASS), including sections skipped by capability.
-12. **Recommendation** — GO (APPROVED) or NO-GO (NOT APPROVED) with reason, risks, mitigation. No "conditional" approval unless `PROJECT-PROFILE.md §16` defines one. Banned: *seems fine, probably, should work, looks correct, most likely, I assume, apparently*.
-13. **Rollback Plan** — steps to revert if production issues, plus the post-deploy watch (escape class E10): if Prod-DB is on, run `Skill(prod-sentinel)` after the deploy and after every import in the release, against a named baseline.
-14. **Sign-Off** — QA, Dev, PM sign-off lines with dates.
-
-**Ticket transitions (only when asked, Jira on):** a sign-off that will change ticket statuses requires a fresh live read of each ticket this run, the audit pass above, and the transition / assignee rules in `PROJECT-PROFILE.md §15`. A developer ruling ("this is intended") is recorded as a ruling, not a fix — "PASS as ruled", citing the comment.
+> Moved to [`references/sign-off-template.md`](references/sign-off-template.md). Read it before writing the sign-off: the report sections, the APPROVED / NOT APPROVED alias rule and the confidence line come from there.
 
 ---
 

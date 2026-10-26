@@ -15,6 +15,15 @@ Template mode checks:
   * no tracked symlink / junction; no node_modules or evidence output tracked
   * privacy: shape-based scan (credentials, keys, tokens, non-example hostnames and emails, non-generic
     ticket keys, workstation paths, loopback tunnel ports) plus an optional git-ignored private list
+  * conventions: description length / no workflow words (warn), an ARGUMENTS + STOP block for every skill
+    that takes arguments, a complete Post-Session memory block, known tool names only, skill size
+    (warn > 16 KB, error > 24 KB), one confidence-line template and one result vocabulary everywhere
+  * versions and counts: catalog.json version == newest CHANGELOG heading; README / catalog counts == reality
+  * guards: every Python hook in settings.json runs through run-hook.sh; the launcher fails closed
+    (scripts/hook-redteam launcher tests); deny list keeps Read(.mcp.json)
+  * MCP template: no @latest, no Windows-only `cmd /c` wrapper (render_mcp.py adds it on Windows)
+  * run records: verdict_check.py accepts the consistent fixture and rejects the tampered one
+  * capability matrix lists every skill exactly once; every evals/evals.json parses
 Exit 1 on any ERROR; warnings do not fail.
 """
 import argparse
@@ -55,7 +64,8 @@ PRIVATE_FILE = os.path.join(HERE, "private-patterns.json")   # git-ignored; neve
 GENERIC_EMAIL_DOMAINS = ("example.com",)                       # any sub-domain of these is fine
 GENERIC_HOST_SUFFIXES = ("example.com", "localhost", "127.0.0.1")
 KNOWN_TOOLING_HOSTS = ("json.schemastore.org", "github.com", "anthropic.com", "claude.com", "claude.ai", "npmjs.com",
-                       "nodejs.org", "python.org", "playwright.dev")   # referenced by docs/config on purpose
+                       "nodejs.org", "python.org", "playwright.dev",
+                       "opencode.ai", "kilo.ai")   # referenced by docs/config on purpose (opencode.ai / app.kilo.ai: config schemas)
 GENERIC_TICKET_PREFIXES = ("APP", "BUG", "SM", "TC")           # APP-nnn, BUG-YYYYMMDD-HHMMSS, smoke/test case ids
 GENERIC_LOOPBACK_PORTS = ()                                    # docs write 127.0.0.1:<port>, never a real port
 
@@ -196,8 +206,12 @@ def check_json_and_hooks():
             r = subprocess.run(["node", "--check", p], capture_output=True, text=True, shell=(os.name == "nt"))
             if r.returncode != 0:
                 ERR.append("%s: node --check failed: %s" % (f, (r.stderr or r.stdout).strip()[:200]))
-    for p in [".claude/skills/demo-creator/scripts", ".claude/skills/test-together/scripts", ".claude/skills/demo-creator/templates"]:
+    for p in [".claude/skills/demo-creator/scripts", ".claude/skills/test-together/scripts", ".claude/skills/demo-creator/templates",
+              ".claude/skills/perf-test/scripts"]:
         d = os.path.join(ROOT, p)
+        if not os.path.isdir(d):
+            ERR.append("missing folder: %s" % p)
+            continue
         for f in os.listdir(d):
             if f.endswith(".js"):
                 r = subprocess.run(["node", "--check", os.path.join(d, f)], capture_output=True, text=True, shell=(os.name == "nt"))
@@ -318,9 +332,9 @@ def check_privacy():
 def catalog_doc(catalog):
     lines = ["# Component catalog", "",
              "Generated from `catalog.json` by `python scripts/validate.py --fix-catalog-doc`. Do not edit by hand.", "",
-             "## Skills", "", "| Skill | Group | Capability rule | What it does |", "|---|---|---|---|"]
+             "## Skills", "", "| Skill | Group | Capability rule | Profile sections read | What it does |", "|---|---|---|---|---|"]
     for name, meta in catalog["skills"].items():
-        lines.append("| `%s` | %s | %s | %s |" % (name, meta["category"], meta["capability"], meta["summary"]))
+        lines.append("| `%s` | %s | %s | %s | %s |" % (name, meta["category"], meta["capability"], profile_sections(name), meta["summary"]))
     lines += ["", "## Agents", "", "| Agent (dispatch name) | File | Capability |", "|---|---|---|"]
     for name, meta in catalog["agents"].items():
         lines.append("| `%s` | `%s` | %s |" % (name, meta["file"], meta["capability"]))
@@ -348,6 +362,206 @@ def check_catalog_doc(catalog, fix):
         ERR.append("docs/catalog.md is out of date: run python scripts/validate.py --fix-catalog-doc")
 
 
+# ---------------------------------------------------------------------------------------------------
+# Conventions, versions, guards, run records (2.1)
+# ---------------------------------------------------------------------------------------------------
+KNOWN_TOOLS = {"Bash", "PowerShell", "Read", "Write", "Edit", "MultiEdit", "Grep", "Glob", "Agent", "WebFetch",
+               "WebSearch", "AskUserQuestion", "SendUserFile", "NotebookEdit", "TodoWrite", "Skill"}
+WORKFLOW_WORDS = re.compile(r"\b(then|runs|produces|synthesi[sz]es|phase \d|step \d)\b", re.I)
+NO_ARGS_BY_DESIGN = {"env-health": "health check of the whole environment", "sync-repos": "syncs every repo when no name is given",
+                     "configure-project": "the bootstrap interviews the user itself"}
+NO_MEMORY_RITUAL = {"configure-project": "writes the profile and config, not QA memory",
+                    "automation-writer": "code-generation utility, no QA verdict",
+                    "qa-standards": "defines the ritual itself",
+                    "qa-verdict-auditor": "a judge in a fresh context; the orchestrator records its result",
+                    "evidence-manager": "a helper other skills call; the calling skill records memory"}
+CANON_RESULTS = ("PASS", "FAIL", "BLOCKED", "NOT APPLICABLE", "NOT YET VERIFIED")
+CONF_TEMPLATE = "Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk:"
+SIZE_WARN, SIZE_ERR = 16 * 1024, 24 * 1024
+
+
+def _skill_files():
+    d = os.path.join(ROOT, ".claude", "skills")
+    for s in sorted(os.listdir(d)):
+        p = os.path.join(d, s, "SKILL.md")
+        if os.path.isfile(p):
+            yield s, p
+
+
+def _agent_files():
+    d = os.path.join(ROOT, ".claude", "agents")
+    for f in sorted(os.listdir(d)):
+        if f.endswith(".md"):
+            yield f[:-3], os.path.join(d, f)
+
+
+def _post_session(text):
+    m = re.search(r"^##+ [^\n]*(Post-Session|Memory Ritual)[^\n]*\n(.*?)(?=^##? [^#]|\Z)", text, re.M | re.S)
+    return m.group(2) if m else None
+
+
+def check_conventions():
+    for s, p in _skill_files():
+        text = read(p)
+        fm = frontmatter(text) or {}
+        d = fm.get("description", "")
+        if len(d) > 500:
+            WARN.append("%s: description is %d chars (> 500); state triggers only, move workflow into the body" % (s, len(d)))
+        if WORKFLOW_WORDS.search(d):
+            WARN.append("%s: description narrates workflow (%r); descriptions state WHEN to use, not HOW" % (s, WORKFLOW_WORDS.search(d).group(0)))
+        size = len(text.encode("utf-8"))
+        if size > SIZE_ERR:
+            ERR.append("%s: SKILL.md is %d bytes (> %d); move reference material into references/" % (s, size, SIZE_ERR))
+        elif size > SIZE_WARN:
+            WARN.append("%s: SKILL.md is %d bytes (> %d)" % (s, size, SIZE_WARN))
+        if fm.get("argument-hint") and s not in NO_ARGS_BY_DESIGN:
+            if "## ARGUMENTS" not in text:
+                ERR.append("%s: takes arguments but has no '## ARGUMENTS' block" % s)
+            elif not re.search(r"(?is)if no arguments.{0,400}\bSTOP\b", text):
+                ERR.append("%s: no 'If no arguments provided ... STOP' sentence (an agent would guess the scope)" % s)
+        for tok in re.findall(r'"([^"]+)"', (re.search(r"^allowed-tools:(.*)$", text, re.M) or [None, ""])[1] if re.search(r"^allowed-tools:", text, re.M) else ""):
+            if tok.startswith("mcp__") or re.match(r"^(Skill|Agent|Bash|Read|Write|Edit)\(", tok):
+                continue
+            if tok not in KNOWN_TOOLS:
+                ERR.append("%s: allowed-tools names unknown tool %r" % (s, tok))
+    for name, p in list(_skill_files()) + list(_agent_files()):
+        if name in NO_MEMORY_RITUAL:
+            continue
+        body = _post_session(read(p))
+        if body is None:
+            ERR.append("%s: no Post-Session (memory) block - memory updates are mandatory (CLAUDE.md)" % name)
+            continue
+        for need, why in (("<memory folder: PROJECT-PROFILE.md §12>", "memory-folder placeholder"),
+                          ("ls -la", "verify line"), ("SUPERSEDED", "mark disproved facts SUPERSEDED")):
+            if need not in body:
+                ERR.append("%s: Post-Session block lacks the %s (%r)" % (name, why, need))
+    for p in files():
+        if not p.endswith(".md"):
+            continue
+        r = rel(p)
+        if r.startswith("docs/maintainers/"):
+            continue
+        text = read(p)
+        for m in re.finditer(r"Verified N of M[^`\n|]*", text):
+            if not m.group(0).startswith(CONF_TEMPLATE):
+                ERR.append("%s:%d: confidence line drifts from the Verdict Contract template: %r"
+                           % (r, text.count("\n", 0, m.start()) + 1, m.group(0)[:70]))
+        for m in re.finditer(r"\bPASS\s*/\s*FAIL\s*/\s*BLOCKED(?:\s*/\s*[A-Z][A-Z ]*[A-Z])*", text):
+            line_txt = text[text.rfind("\n", 0, m.start()) + 1:text.find("\n", m.end())]
+            if all(c in line_txt for c in CANON_RESULTS):
+                continue        # a mapping row that translates a foreign word INTO the five canonical values
+            toks = [t.strip() for t in m.group(0).split("/")]
+            bad = [t for t in toks if t not in CANON_RESULTS]
+            if bad:
+                ERR.append("%s:%d: result list uses non-canonical word(s) %s" % (r, text.count("\n", 0, m.start()) + 1, bad))
+
+
+def check_versions_and_counts(catalog):
+    ch = read(os.path.join(ROOT, "CHANGELOG.md"))
+    m = re.search(r"^## (\d+\.\d+\.\d+)", ch, re.M)
+    if not m:
+        ERR.append("CHANGELOG.md: no '## x.y.z' heading")
+    elif m.group(1) != catalog.get("version"):
+        ERR.append("catalog.json version %s != newest CHANGELOG heading %s" % (catalog.get("version"), m.group(1)))
+    n_sk, n_ag = len(catalog["skills"]), len(catalog["agents"])
+    n_hooks = len([f for f in os.listdir(os.path.join(ROOT, ".claude", "hooks"))
+                   if f.endswith((".py", ".js", ".sh")) and f not in ("harness_config.py", "run-hook.sh")])
+    n_rules = len([f for f in os.listdir(os.path.join(ROOT, ".claude", "rules")) if f.endswith(".md")])
+    for f in ("README.md", "catalog.json", "AGENTS.md", "SETUP.md"):
+        p = os.path.join(ROOT, f)
+        if not os.path.exists(p):
+            continue
+        t = read(p)
+        for num, what in re.findall(r"\b(\d+) (skills|sub-agents|agents|hooks|rules)\b", t):
+            want = {"skills": n_sk, "sub-agents": n_ag, "agents": n_ag, "hooks": n_hooks, "rules": n_rules}[what]
+            if int(num) != want:
+                ERR.append("%s says %s %s; the template ships %d" % (f, num, what, want))
+
+
+def check_guards_and_mcp():
+    settings = json.loads(read(os.path.join(ROOT, ".claude", "settings.json")))
+    for event, groups in settings.get("hooks", {}).items():
+        for g in groups:
+            for h in g.get("hooks", []):
+                cmd = h.get("command", "")
+                if re.search(r"\.py\b", cmd) and "run-hook.sh" not in cmd:
+                    ERR.append("settings.json %s: %r runs a Python hook without run-hook.sh (a missing interpreter "
+                               "would silently disable it)" % (event, cmd[:70]))
+                m = re.search(r"run-hook\.sh[\"']?\s+([A-Za-z0-9_.-]+\.py)", cmd)
+                if m and not os.path.exists(os.path.join(ROOT, ".claude", "hooks", m.group(1))):
+                    ERR.append("settings.json %s: hook script missing: %s" % (event, m.group(1)))
+    if "Read(.mcp.json)" not in settings.get("permissions", {}).get("deny", []):
+        ERR.append("settings.json: deny list must keep Read(.mcp.json) (secrets may live there)")
+    t = read(os.path.join(ROOT, ".mcp.json.template"))
+    if "@latest" in t:
+        ERR.append(".mcp.json.template: '@latest' makes installs drift; pin the tested version")
+    tpl = json.loads(t)
+    for name, srv in (tpl.get("mcpServers") or {}).items():
+        if srv.get("command") == "cmd":
+            ERR.append(".mcp.json.template: %s uses the Windows-only 'cmd /c' wrapper; .claude/scripts/render_mcp.py adds it on Windows" % name)
+    runner = os.path.join(ROOT, "scripts", "hook-redteam", "runner.py")
+    if os.path.exists(runner):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook_runner", runner)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            fails = mod.launcher_tests(os.path.join(ROOT, ".claude", "hooks"))
+        if "SKIPPED" in buf.getvalue():
+            WARN.append("launcher self-test skipped: no POSIX sh found")
+        for cid, why in fails:
+            ERR.append("run-hook.sh launcher test %s failed: %s" % (cid, why))
+
+
+def check_run_records_and_evals():
+    vc = os.path.join(ROOT, ".claude", "skills", "qa-standards", "scripts", "verdict_check.py")
+    fx = os.path.join(ROOT, ".claude", "skills", "qa-standards", "scripts", "fixtures")
+    if not os.path.exists(vc):
+        ERR.append("missing: .claude/skills/qa-standards/scripts/verdict_check.py")
+    else:
+        for name, want in (("consistent-run", 0), ("tampered-run", 1)):
+            r = subprocess.run([sys.executable, vc, os.path.join(fx, name)], capture_output=True, text=True)
+            if r.returncode != want:
+                ERR.append("verdict_check.py on fixtures/%s exited %s, expected %s" % (name, r.returncode, want))
+    for dirpath, _, filenames in os.walk(os.path.join(ROOT, ".claude", "skills")):
+        for f in filenames:
+            if f == "evals.json":
+                p = os.path.join(dirpath, f)
+                try:
+                    data = json.loads(read(p))
+                    if not data.get("evals"):
+                        ERR.append("%s: no evals" % rel(p))
+                except Exception as e:
+                    ERR.append("%s: invalid JSON (%s)" % (rel(p), e))
+    for f in ("references/run-record.md",):
+        pass
+    for py in (".claude/scripts/doctor.py", ".claude/scripts/rebind.py", ".claude/scripts/render_mcp.py",
+               ".claude/skills/qa-standards/scripts/verdict_check.py"):
+        r = subprocess.run([sys.executable, "-m", "py_compile", os.path.join(ROOT, py)], capture_output=True, text=True)
+        if r.returncode != 0:
+            ERR.append("%s: py_compile failed" % py)
+    for f in ("references/run-record.md",):
+        if not os.path.exists(os.path.join(ROOT, ".claude", "skills", "qa-standards", f)):
+            ERR.append("missing: qa-standards/%s" % f)
+
+
+def check_docs_consistency(catalog):
+    p = os.path.join(ROOT, "docs", "capability-matrix.md")
+    t = read(p) if os.path.exists(p) else ""
+    for s in catalog["skills"]:
+        n = len(re.findall(r"^\|\s*`%s`\s*\|" % re.escape(s), t, re.M))
+        if n != 1:
+            ERR.append("docs/capability-matrix.md lists `%s` %d times (must be exactly once)" % (s, n))
+
+
+def profile_sections(skill):
+    t = read(os.path.join(ROOT, ".claude", "skills", skill, "SKILL.md"))
+    secs = sorted({int(x) for x in re.findall(r"§(\d+)", t)})
+    return ", ".join("§%d" % x for x in secs) or "-"
+
+
 def check_installed():
     """Light checks for a project that has the harness installed."""
     for f in [".claude/CLAUDE.md", ".claude/PROJECT-PROFILE.md", ".claude/settings.json", ".claude/hooks/harness-config.json",
@@ -371,6 +585,18 @@ def check_installed():
             r = subprocess.run([sys.executable, "-m", "py_compile", os.path.join(hooks, f)], capture_output=True, text=True)
             if r.returncode != 0:
                 ERR.append("%s: py_compile failed" % f)
+    doctor = os.path.join(ROOT, ".claude", "scripts", "doctor.py")
+    if os.path.exists(doctor):
+        r = subprocess.run([sys.executable, doctor, "--json"], capture_output=True, text=True,
+                           env=dict(os.environ, CLAUDE_PROJECT_DIR=ROOT))
+        try:
+            for c in json.loads(r.stdout).get("checks", []):
+                if c["status"] == "FAIL":
+                    ERR.append("doctor: %s - %s" % (c["check"], c["detail"]))
+        except Exception:
+            ERR.append("doctor.py did not return its JSON report (exit %s)" % r.returncode)
+    else:
+        WARN.append(".claude/scripts/doctor.py missing - guards cannot be self-tested")
     prof = read(os.path.join(ROOT, ".claude", "PROJECT-PROFILE.md")) if os.path.exists(os.path.join(ROOT, ".claude", "PROJECT-PROFILE.md")) else ""
     caps = dict(re.findall(r"^- ([A-Za-z-]+): (on|off)", prof, re.M))
     if not caps:
@@ -393,6 +619,11 @@ def main():
         check_text_hygiene()
         check_links()
         check_privacy()
+        check_conventions()
+        check_versions_and_counts(catalog)
+        check_guards_and_mcp()
+        check_run_records_and_evals()
+        check_docs_consistency(catalog)
         check_catalog_doc(catalog, args.fix_catalog_doc)
     for w in WARN:
         print("WARN ", w)

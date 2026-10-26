@@ -26,6 +26,7 @@
 - Jira: off
 - SSH: off
 - Demo: off   (demo-creator: Node + Playwright + ffmpeg + a TTS engine; `node .claude/skills/demo-creator/scripts/setup.js --check`)
+- Mobile: off   (no mobile skill ships yet; see docs/capability-matrix.md -> Mobile)
 
 ## §3 Repositories
 | Repo path | Description | Default branch |
@@ -82,6 +83,7 @@
 - **Auth middleware:**
 - **Admin controllers:**
 - **Workers / Lambdas / cron:**
+- **Feature-flag / remote-config source:** (where flags live and how to read the live value per env - a table, a config service, an env file; blank = no flags)
 
 ## §10 Key tables & gotchas
 - **Important tables:**

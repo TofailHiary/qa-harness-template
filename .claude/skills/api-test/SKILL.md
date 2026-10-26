@@ -1,6 +1,6 @@
 ---
 name: api-test
-description: Use when a backend or report API endpoint needs direct testing — auth, RBAC/cross-tenant access, input validation, error handling, response schema, sorting/pagination, and DB-write consistency. Triggers include "test this endpoint/API", verifying a route in a PR, replaying a captured frontend request, or Phase 4 of /full-qa. Tests the API directly, independent of any frontend.
+description: Use when a backend or report API endpoint needs direct testing — auth, RBAC and cross-tenant access, input validation, error handling, response schema, sorting/pagination, DB-write consistency — independent of any frontend. Triggers include "test this endpoint/API", verifying a route in a PR, replaying a captured frontend request, or the API layer of /full-qa.
 argument-hint: "endpoint or feature to test"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__http-client__http_get", "mcp__http-client__http_post", "mcp__http-client__http_request", "mcp__http-client__set_default_headers", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__postman-api-mcp__*", "Skill(qa-standards)", "Skill(bug-verifier)", "Skill(bug-report)", "Write"]
 ---
@@ -109,4 +109,5 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 2. **Cross-reference first** — grep the folder for the endpoint/route/symptom; UPDATE an existing entry instead of filing a duplicate.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
 4. **Content:** endpoints tested + date + Env + commit, pass/fail counts, verdict in Verdict Contract words, bugs (ID, severity, layer, NEW/DUPLICATE), test data (user/entity ids — never passwords or tokens), root-cause `path:line`, any mutation made + restored, any prior memory this run disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

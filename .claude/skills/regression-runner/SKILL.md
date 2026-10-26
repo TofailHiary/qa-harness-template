@@ -64,6 +64,15 @@ Do not silently narrow the blast radius to make a PASS easier; if you drop an in
 
 ---
 
+## Run record & resume (`run.json`)
+Keep `qa-evidence/<run-folder>/run.json` (`qa-standards/references/run-record.md`): create it at Scope Lock
+(one register row per in-scope area, NOT YET VERIFIED until run, plus the Step 1b matrix), update it after
+every phase (that update is the checkpoint), and if it already exists with `checkpoint.next_step` set,
+RESUME from that step and say so. Before the verdict,
+`python .claude/skills/qa-standards/scripts/verdict_check.py qa-evidence/<run-folder>` must exit 0 - it
+recomputes the confidence line and the run verdict; never type them by hand. `--package` then writes the
+`package.md` the independent audit reads.
+
 ## Step 1: Enumerate the indirect blast radius
 
 Take the blast radius from `Skill(pr-risk-analyzer)` output if it ran this session; otherwise derive it via qa-standards -> Impact Analysis. Trace each outward and list concrete targets (file / endpoint / table / job / report):
@@ -124,7 +133,7 @@ Allowed types: DB query result, API request/response, Browser screenshot, Consol
 ### Independent audit (REQUIRED before the verdict is stated)
 
 Hand over ONLY the package — Scope Lock, baseline sources, every finding (fails AND passes), the Evidence Ledger, the **Execution Register** and the proposed verdict — never your reasoning or transcript.
-- Sub-agents allowed (`PROJECT-PROFILE.md §16`): dispatch `qa-verdict-auditor` via the `Agent` tool (a judge, not a second QA run).
+- Sub-agents allowed (`PROJECT-PROFILE.md §16`): dispatch `qa-verdict-auditor` via the `Agent` tool with the path of `qa-evidence/<run-folder>/package.md` (from `verdict_check.py --package`) - a judge, not a second QA run.
 - Sub-agents disabled (§16): audit in-session — re-derive the verdict from the package alone, item by item against qa-standards -> Verdict Integrity #1-8 and the Completion Gate; write `AUDIT_PASSED` / `AUDIT_FAILED`.
 `AUDIT_FAILED` -> you may NOT state the verdict; resolve each challenge with evidence, then re-audit if findings moved. Its challenges are leads: reproduce first-hand anything you act on (qa-standards -> Verdict Integrity #7). Record that the audit ran, and how.
 

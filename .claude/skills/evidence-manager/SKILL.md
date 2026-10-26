@@ -1,6 +1,6 @@
 ---
 name: evidence-manager
-description: Use when another QA skill needs to capture, name, and organize evidence artifacts and assemble the Evidence Ledger — creating the finding folder, saving an API response / screenshot / log / CSV / note with the standard naming, and producing the ledger table. Triggers include "save this as evidence", "set up the evidence folder for this bug", "assemble the evidence ledger", or a producer skill handing off proof to be filed. A utility helper other skills call — it captures evidence, it does not test.
+description: Use when another QA skill must capture, name and file evidence (API response, screenshot, log, CSV, note) in the run folder, or assemble the Evidence Ledger and run record. Triggers include "save this as evidence", "set up the evidence folder for this bug", "assemble the evidence ledger", or a skill handing off proof to be filed. A helper: it files evidence, it does not test.
 argument-hint: "the finding (ticket key or BUG-id) + the artifact(s) to file"
 allowed-tools: ["Bash", "Read", "Glob", "mcp__filesystem__*", "mcp__playwright__*", "Skill(qa-standards)", "Write"]
 ---
@@ -8,6 +8,12 @@ allowed-tools: ["Bash", "Read", "Glob", "mcp__filesystem__*", "mcp__playwright__
 # Evidence Manager — Capture & Assemble the Evidence Ledger
 
 > **Capability note:** this skill is **always on** (utility — see `docs/capability-matrix.md`). It needs only the filesystem MCP; `mcp__playwright__*` screenshots are used only when Browser is `on` in `PROJECT-PROFILE.md` §2.
+>
+> **No profile at all? (user-level install - there is no `.claude/PROJECT-PROFILE.md`.)** Do not stop.
+> Ask once for what this skill needs - where the run folder should live (default `./qa-evidence`) and the run's ticket key or a BUG timestamp - label every conclusion that rests on those
+> answers INFERRED, skip the steps whose tools are not available and say which, and if no memory
+> folder exists say in one line that memory was not persisted. A profile that EXISTS but is blank still
+> means: run `/configure-project`.
 
 A utility helper. It captures and organizes QA evidence consistently and assembles the Evidence Ledger, per the qa-standards "Evidence folder convention" and "Evidence provenance" sections. Called by `bug-verifier` and `full-qa`; any other skill (db-check, api-test, browser-test, regression-runner, qa-report) may call it when it needs to file attachments — it files proof and hands back a ledger — **it does not run tests, lock scope, mutate data, or persist memory.** Those rituals belong to the finding-producer that called it.
 
@@ -56,6 +62,13 @@ The read-only QA hook **BLOCKS the `Write`/`Edit` tools** for `qa-evidence/`. To
 Never reach for `Write`/`Edit` here — it will be blocked by design.
 
 ## Step 4: Assemble + output the Evidence Ledger
+
+**Machine-readable twin.** Every ledger row also goes into `qa-evidence/<run-folder>/run.json` -> `ledger`
+(`qa-standards/references/run-record.md`): `id`, `type`, `file` (exactly as saved in the run folder, or a
+URL / `path:line`), `env`, `commit`, `captured_at`, `proves`. Write it with the filesystem MCP or a Bash
+heredoc. `python .claude/skills/qa-standards/scripts/verdict_check.py qa-evidence/<run-folder> --partial`
+proves every id resolves to a file; `--package` renders the auditor's `package.md`; `--summary qa-evidence`
+lists every run (verdict, N/M, blocked, not-yet-verified, skipped phases, record consistency).
 
 Collect every artifact filed (plus any code/Postman/GitHub references the caller passed) into the ledger and return it to the calling skill. Provenance columns are mandatory on every row (qa-standards → Evidence provenance):
 

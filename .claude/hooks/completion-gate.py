@@ -14,6 +14,10 @@ a false BLOCKED ("no fixture" when many fixtures existed), an authoritative sour
 without being read, and a stale ticket status propagated into a recommendation. This hook is the
 mechanical backstop for the Verdict Contract / Completion Gate sections of qa-standards.
 
+Check 14 recomputes the run: when the verdict names a run folder (qa-evidence/<run-folder>) that holds a
+run.json, the folder is checked with qa-standards/scripts/verdict_check.py - a stated GO that the rows
+contradict, an evidence id with no file, or a confidence line that does not add up is reported here.
+
 It is deliberately conservative: it only speaks when the turn LOOKS like a QA verdict. Ordinary
 conversation is never touched. Lines that QUOTE or EXPLAIN a verdict (code blocks, inline code,
 blockquotes, lines tagged "example") are stripped before the checks run.
@@ -211,6 +215,59 @@ def checks(text):
             out.append("A concession (you are right / I was wrong) with no new evidence beside it. "
                        "pushback-protocol.md: re-run the check and quote the fact that changed your answer, or hold the position.")
 
+    # 14. The run record must agree with itself (references/run-record.md).
+    out.extend(run_record_warnings(text))
+
+    return out
+
+
+def _project_root():
+    return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+
+
+def _evidence_root():
+    ev = "qa-evidence"
+    try:
+        with io.open(os.path.join(HERE, "harness-config.json"), "r", encoding="utf-8") as fh:
+            ev = json.load(fh).get("evidence_root") or ev
+    except Exception:
+        pass
+    return ev if os.path.isabs(ev) else os.path.join(_project_root(), ev)
+
+
+def run_record_warnings(text):
+    names = sorted(set(re.findall(r"qa-evidence[/\\]([A-Za-z0-9][A-Za-z0-9._-]*)", text)))
+    if not names:
+        return []
+    states_verdict = bool(re.search(r"\b(GO|NO-GO|PARTIAL)\b", text))
+    vc_path = os.path.join(_project_root(), ".claude", "skills", "qa-standards", "scripts", "verdict_check.py")
+    out = []
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("verdict_check", vc_path)
+        vc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(vc)
+    except Exception:
+        return []
+    for name in names[:3]:
+        rd = os.path.join(_evidence_root(), name)
+        if not os.path.isdir(rd):
+            continue
+        if not os.path.isfile(os.path.join(rd, "run.json")):
+            if states_verdict:
+                out.append("The verdict names %s but that folder has no run.json, so the verdict cannot be "
+                           "recomputed (qa-standards references/run-record.md)." % name)
+            continue
+        try:
+            data = vc.load(rd)
+            err, _, rc = vc.check(data, rd, partial=not states_verdict)
+        except Exception as e:
+            out.append("run.json in %s could not be checked (%s)." % (name, type(e).__name__))
+            continue
+        if err:
+            out.append("run.json in %s contradicts itself (%d issue(s)); first: %s. Recomputed: %s. "
+                       "Run verdict_check.py on the folder and fix the record or the verdict."
+                       % (name, len(err), err[0], rc["confidence_line"]))
     return out
 
 

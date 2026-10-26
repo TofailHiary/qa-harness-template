@@ -183,7 +183,7 @@ Send:
   reads.
 - **Tickets:** the state of every ticket you mention, re-read now.
 - **Noise:** each noise item you saw, with its source.
-- **Confidence line:** `Verified N of M cases; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: …`
+- **Confidence line:** `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: …` (an area here is one smoke case)
 
 Then run the memory ritual (`qa-standards` → Memory Ritual): update the feature's memory file under
 `<memory folder: PROJECT-PROFILE.md §12>` with the accounts that worked (identifiers only), the
@@ -201,3 +201,13 @@ the lines that carry the signal, and keep the files out of tickets and chats.
   when you confirm a new one; an item without a source is a finding, not noise.
 - `scripts/api_peek.js`: pluggable-auth GET reader (`node scripts/api_peek.js` prints usage).
 - `scripts/smoke_register.js`: the per-case results register and the close-out summary.
+
+## Post-Session (MANDATORY — enforced)
+
+Update auto-memory before claiming completion — full ritual in qa-standards -> Memory Ritual. If it cannot be persisted -> **HALT and tell the user**; never report success.
+
+1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool; grep the folder first and UPDATE an existing entry instead of filing a duplicate.
+2. **Update** `MEMORY.md` with a one-line (<=200-char) dated pointer.
+3. **Content:** story / ticket + env + date, the cases walked with the user and their results in Verdict Contract words, the test data used (ids only - never passwords or tokens), anything the user observed that became a finding.
+4. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows a non-zero size, else HALT.

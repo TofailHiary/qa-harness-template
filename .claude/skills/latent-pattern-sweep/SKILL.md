@@ -1,6 +1,6 @@
 ---
 name: latent-pattern-sweep
-description: Use when hunting DORMANT defects that no functional test can find — code whose assumptions hold only because production data has not grown into them yet (a "there is exactly one" cardinality assumption, an enum branch never taken, a field assumed populated). Triggers include "why did we miss this", "find similar issues", "deep sweep for the same pattern", "are there more like this", a bulk content/data import, the post-mortem of an escaped bug whose code was older than the bug, or a release that ships new content types, modes or formats.
+description: Use when hunting DORMANT defects no functional test finds — code whose assumptions hold only because production data has not grown into them (an "exactly one" cardinality, an enum branch never taken, a field assumed populated). Triggers include "why did we miss this", "find similar issues", "are there more like this", a bulk content import, the post-mortem of an escaped bug older than its symptom, or a release shipping new content types or modes.
 argument-hint: "the change, import, escaped bug or area to sweep (plus the environment: Prod read-only, or Test)"
 allowed-tools: ["Read", "Grep", "Glob", "Bash", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__github__*", "Skill(qa-standards)", "Write"]
 ---
@@ -142,3 +142,6 @@ reference (`path:line`). Save the query text and output under `qa-evidence/<run-
 Record every ARMED finding in memory (`<memory folder: PROJECT-PROFILE.md §12>`) with its trigger
 condition, so the next import can check it in one query. Update `MEMORY.md` with a one-line pointer.
 If memory cannot be persisted → HALT and tell the user; never report success.
+- **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+- **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows a non-zero size, else HALT.
+

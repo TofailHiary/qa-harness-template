@@ -1,6 +1,6 @@
 ---
 name: ai-output-eval
-description: Use when an AI/ML-generated or computed output (score, recommendation, KPI, aggregate, snapshot, report figure) must be checked for correctness against its source data, determinism across runs, and edge-case handling — recommendation picks, model scores, dashboard KPIs, materialized report figures, grading or ranking results. Triggers include "is this score right", "verify the recommendation picked correctly", "the dashboard KPI looks wrong", "does the report match the source records", "recompute this output", "is this output deterministic".
+description: Use when an AI/ML-generated or computed output (score, recommendation, KPI, aggregate, snapshot, report figure) must be checked against its source data, for determinism across repeated computations, or for edge cases. Triggers include "is this score right", "verify the recommendation picked correctly", "the dashboard KPI looks wrong", "does the report match the source records", "recompute this output", "is this output deterministic".
 argument-hint: "which output to evaluate (pipeline + entity, e.g. 'recommendation for user 267' or 'report snapshot for account 98')"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__http-client__*", "mcp__playwright__*", "mcp__github__*", "Skill(qa-standards)", "Write"]
 ---
@@ -168,4 +168,5 @@ be persisted -> **HALT and tell the user**; never report success.
    **source-vs-output proof pairing** + the recompute formula used (so it is re-runnable), which edge cases
    were exercised and which were coverage gaps, the NULL-coercion rule the code uses, test data (entity
    IDs only), root-cause `path:line`, any prior memory this run disproved.
-5. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
+5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
+6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.
