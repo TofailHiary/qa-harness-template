@@ -2,8 +2,6 @@
 name: db-check
 description: Use when a feature, story, PR, or bug needs deep database-layer validation — schema vs ORM-model drift, foreign-key / orphan integrity, soft-delete mechanism correctness, data-quality / enum / null checks, tenant scoping, relationship-count reconciliation, or index coverage. Triggers include "check the DB", "db-check a table", "validate schema for X", "are there orphaned rows", "do the counts reconcile", "which tables have deleted_at", "confirm a prod data repro".
 argument-hint: "table name, feature, or full"
-
-agent: db-validator
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__filesystem__write_file", "Write"]
 ---
 
@@ -23,6 +21,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 
 ## ARGUMENTS
 $ARGUMENTS
+
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
 
 ## If no arguments provided
 Ask, then STOP until answered:
@@ -193,7 +193,7 @@ Only when Prod-DB is `on` and a defect is **already reproduced on Test**: run th
 
 Scope (tables + blast radius) -> mechanism + contract queries (Layer Rule) -> run categories 1-8 in order -> Evidence Ledger + Issues table + summary (+ Execution Register in `full` / `regression` / `release` mode: one row per table x check).
 
-**IMPORTANT:** Run queries ONE AT A TIME, never in parallel.
+Run queries one at a time, not in parallel — parallel calls can cascade into DB MCP errors.
 
 ---
 
@@ -237,7 +237,7 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 
 1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it is allowed). Naming `project_<slug>.md` / `feedback_<slug>.md` / `reference_<slug>.md`; frontmatter `name` / `description` / `metadata.type`.
 2. **Cross-reference first** — grep the folder for the table/column/entity-ID/symptom; UPDATE an existing entry instead of filing a duplicate.
-3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
+3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<YYYY-MM-DD · title>](<file>.md) — <hook>`.
 4. **Content:** feature + date + Env + commit, verdict = the canonical run verdict per qa-standards -> Verdict Contract (**GO / NO-GO / PARTIAL**; a skill alias may follow in parentheses), issues (table, check, severity, layer, NEW/DUPLICATE), the soft-delete mechanism and contract facts you confirmed (so §10 can be updated), test data (ids/tables/DB), root-cause location, regression risks for next time, any prior memory this run disproved.
 5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

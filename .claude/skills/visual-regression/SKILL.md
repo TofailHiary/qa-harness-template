@@ -1,7 +1,7 @@
 ---
 name: visual-regression
 description: Use when a page or screen must be checked for layout/responsive defects across screen sizes — horizontal overflow, text truncation cutting real content, element overlap or misalignment, broken wrapping, off-screen/clipped elements, or images not fitting. Triggers include "check responsive layout", "does this look right on mobile/tablet", "test breakpoints", "is anything overflowing/cut off", "verify the layout across screen sizes".
-argument-hint: "page or flow to check + which breakpoints (default Desktop 1440 / Tablet 768 / Mobile 375)"
+argument-hint: "page or flow to check + which breakpoints (default Desktop 1440 / Laptop 1366 / Tablet 768 / Mobile 375)"
 allowed-tools: ["Read", "Grep", "Glob", "mcp__playwright__*", "mcp__chrome-devtools__*", "Skill(qa-standards)", "Write"]
 ---
 
@@ -20,6 +20,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 If no arguments: ask which page/flow and which breakpoints to check, then STOP. Do not navigate until scope is set.
 
 ---
@@ -33,7 +35,7 @@ State the scope before the first navigation. Do not resize/snapshot until this i
 |---|---|
 | Page / screen / flow | |
 | QA mode | smoke / targeted / regression / bugfix |
-| Breakpoints in scope | Desktop 1440 / Tablet 768 / Mobile 375 (default — or the project's own set from `PROJECT-PROFILE.md §16`, if any) |
+| Breakpoints in scope | Desktop 1440 / Laptop 1366 (a common small-laptop width) / Tablet 768 / Mobile 375 (default — or the widths in `<browsers / devices: PROJECT-PROFILE.md §16>`) |
 | Roles in scope | `<roles: PROJECT-PROFILE.md §8>` (e.g. Admin / Manager / User / Guest) |
 | Routes (full journey, not just the changed screen) | |
 | Page states to render (empty / single / many / long text / error) | |
@@ -70,8 +72,8 @@ This skill is **validation-only by nature** — it reads layout, it never closes
 ### Step 1: Scope & login
 Fill the Scope Lock. Navigate to the test URL, log in for the role in scope (`<role account: PROJECT-PROFILE.md §7>`), wait for text unique to the target page, confirm you are on the target screen. Cross-check memory first: grep `<memory folder: PROJECT-PROFILE.md §12>` for the page / component / breakpoint in case a layout defect here is already known.
 
-### Step 2: Per breakpoint — repeat for EACH (Desktop 1440 / Tablet 768 / Mobile 375)
-1. `mcp__playwright__browser_resize` to the width (e.g. 1440×900, 768×1024, 375×812).
+### Step 2: Per breakpoint — repeat for EACH (Desktop 1440 / Laptop 1366 / Tablet 768 / Mobile 375)
+1. `mcp__playwright__browser_resize` to the width (e.g. 1440×900, 1366×768, 768×1024, 375×812).
 2. `mcp__playwright__browser_navigate` to (or reload) the target route so layout recomputes at the new width.
 3. `mcp__playwright__browser_snapshot` — capture the accessibility/DOM tree (element positions, what is rendered).
 4. `mcp__playwright__browser_take_screenshot` with `filename: qa-evidence/<run-folder>/<breakpoint>-<name>.png` — full-page capture for the ledger.
@@ -85,7 +87,7 @@ Fill the Scope Lock. Navigate to the test URL, log in for the role in scope (`<r
 6. Repeat the capture for each **page state** in scope (empty list, one item, many items, long text, error banner) — a layout that holds for the demo data and breaks at 40 rows or a 60-character name is a FAIL.
 
 ### Step 3: Layout checks at each breakpoint
-Inspect snapshot + screenshot (and computed styles where ambiguous) for:
+Open each screenshot with `Read` and inspect it with the snapshot (and computed styles where ambiguous) for:
 - **Horizontal overflow / unexpected scrollbars** — page or container `scrollWidth > clientWidth`; content forcing sideways scroll.
 - **Text truncation cutting real content** — ellipsis/clipping that hides meaningful text (labels, names, values), not just intended single-line truncation.
 - **Overlap** — elements rendering on top of each other (text over icons, modal over trigger, sticky header over content).
@@ -94,6 +96,7 @@ Inspect snapshot + screenshot (and computed styles where ambiguous) for:
 - **Off-screen / clipped elements** — controls pushed outside the viewport, cut at a container edge, or unreachable.
 - **Images not fitting** — distorted aspect ratio, overflow past container, not scaling down on mobile, broken/missing render.
 - **Mobile specifics (375)** — nav collapses to hamburger as intended, tap targets not crammed, no fixed-width element wider than viewport.
+- **Second engine** — on the screens browser-test Step 7 ran in WebKit / Firefox (`scripts/xbrowser.js`), compare their screenshots with Chromium at the same size; a difference is a finding with both pictures. A `position: fixed` sidebar that stops at the viewport height in a full-page screenshot is the capture, not the layout.
 - **Layout shift after load** — the page settles differently after fonts / data / images arrive; capture once immediately and once after the network goes idle.
 
 ### Step 4: Compare to expected

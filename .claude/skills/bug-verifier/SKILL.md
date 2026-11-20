@@ -16,6 +16,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP: "Which bug should I verify? Give the description, bug ID, or the suspected issue." Do not guess from conversation; do not run queries/tests until the target is known.
 
@@ -24,11 +26,11 @@ Ask, then STOP: "Which bug should I verify? Give the description, bug ID, or the
 ## Rules
 1. Use ultrathink for every verification.
 2. Run DB queries ONE AT A TIME (sequentially) to avoid cascading MCP errors.
-3. Verify ONE bug at a time — if several, ask which first.
+3. Verify ONE bug at a time. Several bugs inside `/full-qa` or `/qa-validate`: verify them one after another, highest severity first, without asking (full-qa Rule 8). Standalone with several bugs: ask which to start with.
 4. Memory is ON-DEMAND for loading; the Memory ritual at the end is MANDATORY.
 5. Every step that supports the verdict gets an Evidence Ledger row, stamped with **Env / Branch-Commit / Captured-at** (qa-standards → Evidence provenance). **No reproduction = no confirmed bug.**
 6. **Six questions first** (qa-standards → The six questions) — written out in 2–6 lines before the first tool runs: what is requested · what is authoritative · what can be verified · which assumptions are eliminated · what evidence is required · what is completion.
-7. **Ticket-transition rule** (qa-standards → Verdict Contract). If this verdict will move a ticket status in the issue tracker (`PROJECT-PROFILE.md §15`): (a) re-read the ticket live THIS run (`mcp__claude_ai_Atlassian__getJiraIssue` for Jira, or the tracker read tool named in §15); (b) produce a mini Execution Register — one row each for *expected source*, *reproduction*, *code at HEAD*, *fixture*; (c) get an independent audit of the package (findings + ledger + register + proposed verdict): if `PROJECT-PROFILE.md §16` allows sub-agents, dispatch `Agent(qa-verdict-auditor)`; if §16 says sub-agents are disabled, run the in-session audit pass yourself — re-derive the verdict from the package alone, item by item against qa-standards → Verdict Integrity, and write the result. **AUDIT_PASSED before any transition.** Transition ids, status names and assignee rules come from §15, never from this skill. A developer ruling ("this is intended") is recorded as a ruling — "PASS as ruled", citing the comment — never as a fix.
+7. **Ticket-transition rule** (qa-standards → Verdict Contract). If this verdict will move a ticket status in the issue tracker (`PROJECT-PROFILE.md §15`): (a) re-read the ticket live THIS run (`mcp__claude_ai_Atlassian__getJiraIssue` for Jira, or the tracker read tool named in §15); (b) produce a mini Execution Register — one row each for *expected source*, *reproduction*, *code at HEAD*, *fixture*; (c) get an independent audit of the package (findings + ledger + register + proposed verdict): if `PROJECT-PROFILE.md §16` allows sub-agents, dispatch `Agent(qa-verdict-auditor)`; if §16 says sub-agents are disabled, run the in-session audit pass yourself — re-derive the verdict from the package alone, item by item against qa-standards → Verdict Integrity, and write the result. **AUDIT_PASSED before any transition** (checklist: full-qa `references/audit.md`), and the verdict opens with the Run line in plain text, `Run: bug-verifier | QA mode: bugfix | Audit: AUDIT_PASSED` (qa-standards → Verdict Contract). Transition ids, status names and assignee rules come from §15, never from this skill. A developer ruling ("this is intended") is recorded as a ruling — "PASS as ruled", citing the comment — never as a fix.
 8. **Fix verification = real wire shape.** Capture the actual response body / file / event in the target environment and test the fix against THAT, not against the unit-test mock (qa-standards → Judgement Discipline #7). *(illustrative)* every unit test of a response parser passed against a plain-string body while the backend actually sent a JSON envelope — the fix never fired in the real flow.
 
 ---
@@ -111,7 +113,7 @@ Apply qa-standards -> Bug Classification (FE / BE / Admin / Report / DB / Both).
 | Data issue causing behavior | **NOT A BUG** | Fix test data |
 | Environment/deployment issue | **NOT A BUG** | Note env issue |
 
-Finding verdicts are exactly **CONFIRMED BUG / NOT A BUG / CANNOT CONFIRM / DUPLICATE** (qa-standards → Verdict Contract); they describe one finding, never a run. In the verdict line, name the escape classes you actively checked (E1–E13); an unchecked class is a NOT YET VERIFIED row, not silence.
+Finding verdicts are exactly **CONFIRMED BUG / NOT A BUG / CANNOT CONFIRM / DUPLICATE** (qa-standards → Verdict Contract); they describe one finding, never a run. In the verdict line, name the escape classes you actively checked (E1–E15); an unchecked class is a NOT YET VERIFIED row, not silence.
 
 ## CANNOT CONFIRM — Escalation Path
 Run in order; stop as soon as reproduction succeeds.
@@ -135,7 +137,7 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 
 1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it allows). Frontmatter `name` / `description` / `metadata.type`.
 2. **Cross-reference first** — grep for the endpoint/path/user-ID/symptom; UPDATE an existing entry (esp. on DUPLICATE-CHECK) instead of filing a duplicate.
-3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer.
+3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer whose link title carries the date (escape class E13).
 4. **Content:** bug + date, verdict (CONFIRMED BUG / NOT A BUG / CANNOT CONFIRM / DUPLICATE), layer, reproduction rate, input class used, test data (IDs / account identifiers — never passwords), root-cause `path:line`, escape classes checked, any prior memory confirmed/disproved.
 5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` non-zero, else HALT.

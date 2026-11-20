@@ -8,7 +8,7 @@ Capability names come from `PROJECT-PROFILE.md` §2. A row whose capability is `
 - `.claude/CLAUDE.md` + `.claude/PROJECT-PROFILE.md` (always loaded): identity §1, capabilities §2, repos and branches §3, stack §4, URLs §5, DB connections §6, accounts by identifier §7, roles §8, code paths §9, tables and gotchas §10, async consumers §11, evidence and memory paths §12, docs §13, project MCP / typed tools §14, issue tracker §15, QA policy §16, plugins §17.
 - `.claude/skills/qa-standards/SKILL.md`: QA Modes, Scope Lock, Impact Analysis & Coverage, Evidence Ledger, Mutation Safety Gate, MCP Server Routing, Completion Gate, Verdict Contract, Execution Register, Authoritative Source Hierarchy, Judgement Discipline, Escape classes & their gates, Memory Ritual.
 - `.claude/rules/*.md`: `testing.md` and `db-gotchas.md` always loaded; `frontend.md` / `backend.md` / `admin.md` per layer; `anomaly-disposition.md` and `pushback-protocol.md` when the project ships them.
-- `.claude/hooks/completion-gate.py` → `checks()`: the checks a verdict turn must satisfy (evidence reference, BLOCKED with what unblocks it, live ticket read, named gaps, CANNOT CONFIRM with escalation, dismissal with source, Execution Register present, confidence line and its arithmetic, dissolved-anomaly phrases, PASS-by-toast, fix verified without root cause, concession without a new fact). Count them in the file; do not quote a remembered number.
+- `.claude/hooks/completion-gate.py` → `checks()`: the checks a verdict turn must satisfy (evidence reference, BLOCKED with what unblocks it, live ticket read, named gaps, CANNOT CONFIRM with escalation, dismissal with source, Execution Register present, confidence line and its arithmetic, dissolved-anomaly phrases, PASS-by-toast, fix verified without root cause, concession without a new fact, the run record (`run.json`) agreeing with itself, NOT YET VERIFIED without a structural blocker, asking whether to run the skill's own steps, "expected" resting only on a code comment, AUDIT_PASSED without a complete `Case completeness:` line, a `Skills loaded:` ✓ the session transcript does not show, a core page with no `Core-page sweep` row, missing `Regression:` rows, a run report without the Run line). Count them in the file; do not quote a remembered number.
 - `.claude/hooks/harness-config.json`: which folders are write-blocked, where memory and evidence live.
 - `.claude/references/system-map.md` (when the project maintains one): route mounts, admin controllers, FE pages and route constants, DB families, async chains, armed risks, search recipes. A section older than its stated verification date is unverified — re-derive it from code.
 
@@ -29,7 +29,7 @@ Capability names come from `PROJECT-PROFILE.md` §2. A row whose capability is `
 ## R5 Code (capability: GitHub and/or LocalRepos)
 - Repo table and branches: §3 (branch names are case-sensitive; different repos may target different branches — read the row, do not assume one branch for all).
 - PR: `mcp__github__pull_request_read` (files, diff, base and head, merged state), `mcp__github__list_commits`.
-- Local state (read-only verbs only): `git -C <repo> branch --show-current`, `git -C <repo> log -1 --format='%h %ci %s'`, `git -C <repo> diff --name-only <base>..<head>`, `git show`. Pulling is `/sync-repos`, run by full-qa Phase 1, not here.
+- Local state (read-only verbs only): `git -C <repo> branch --show-current`, `git -C <repo> log -1 --format='%h %ci %s'`, `git -C <repo> diff --name-only <base>..<head>`, `git show`. Pulling is `/sync-repos`, run by full-qa just before Step 0, not here. A release or post-deploy check reads the release diff per repo (qa-standards -> Impact Analysis item 0).
 - File → surface: §9 key code paths (frontend API layer, pages / components, backend routes, models, auth middleware, admin controllers) and `.claude/references/system-map.md` §2–6 when present.
 - Shared callers: Grep the component name across the frontend repo; the route path across the backend routes and every frontend that calls it; the table name across every repo in §3 plus the async consumers in §11.
 - Is the fix live? The check belongs to `env-health`; the prompt names what to look for (a unique string from the diff in the deployed bundle, a build id, a worker / function version). Deploy state stays UNKNOWN in the prompt.
@@ -42,10 +42,10 @@ Capability names come from `PROJECT-PROFILE.md` §2. A row whose capability is `
 
 ## R7 Environment and tools
 - Target env defaults to Test. URLs §5, DB names §6, accounts by identifier and role §7 (passwords live in environment variables / the git-ignored `.mcp.json` — never in the prompt).
-- `.mcp.json` lists the servers; `env-health` probes them; a project MCP status tool, if §14 lists one, shows the live sessions / profiles. Deploy state is UNKNOWN until `env-health` runs.
+- The session's MCP tool list shows the servers (never read `.mcp.json`: it can hold secrets); `env-health` probes them; a project MCP status tool, if §14 lists one, shows the live sessions / profiles. Deploy state is UNKNOWN until `env-health` runs.
 
 ## R8 Fixtures (capability: DB)
-- `test-data-manager` Step 2 LOCATE: existing records that fit; input classes (parser / upload / device) and sample files from the folder §13 names, if any; a local replica or writable copy if §6 lists one.
+- `test-data-manager` Step 2 LOCATE: existing records that fit; input classes (parser / upload / device) and sample files from the folder §13 names, if any; a local replica or writable copy if §6 lists one; a running local copy of the code or the DB (`docker ps` when the project uses containers) that can run the cases Test cannot (a missing table, a missing key, a rollback).
 - Only a resource that cannot be started is a gap; a closed tunnel or a stopped container is an operational step the prompt names.
 
 ## R9 Armed risks

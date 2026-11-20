@@ -17,15 +17,15 @@ lists every variable with a safe example value. The fully worked fictional examp
 | §5 Environments & URLs | per surface: Test (default), Dev, Prod (read-only) | `https://test.acme.example.com` |
 | §6 DB connections | host, port, DB name, user, **password env var**, MCP tool id, writes allowed; prod access path; optional local replica | `${QA_DB_PASS}`, `mcp__mcp_server_mysql__mysql_query` |
 | §7 Auth & test accounts | login method, SSO/impersonation path, one row per role with the **password env var** | `admin@acme.example.com · ${ADMIN_PASS}` |
-| §8 Roles | the roles and where they live in the schema | `Admin, Manager, User, Guest (user → user_account → role)` |
-| §9 Key code paths | FE API layer, pages, route constants, BE routes + mount file, models, auth middleware, admin controllers, workers | `acme-api/routes/`, `acme-api/workers/` |
+| §8 Roles | the roles and where they live in the schema; **core pages per role** for the core-page sweep (completion gate check #20 counts them) | `Admin, Manager, User, Guest (user → user_account → role)` · `User: /home, /orders` |
+| §9 Key code paths | FE API layer, pages, route constants, **shared text files, text-key prefixes, text-key prefixes** (i18n / locale bundles), BE routes + mount file, models, auth middleware, admin controllers, workers | `acme-api/routes/`, `acme-api/workers/` |
 | §10 Key tables & gotchas | tables, FKs, soft-delete mechanism per table, column comments that carry contracts, active-row predicates | `order has NO deleted_at; account uses status enum` |
 | §11 Async consumers | queues, workers, cron, email, webhooks; terminal writer per chain | `order placed → SQS → workers/invoice.js → invoice` |
 | §12 Evidence & memory | evidence folder, memory folder (blank = derived), protected repos, **owned repos** | `protected: acme-web, acme-api · owned: acme-qa-tools` |
 | §13 Docs | reference docs, sample-file library for upload/parser tests, API collection ids | `qa-fixtures/ (digital PDF, scanned PDF, 0-byte PDF)` |
 | §14 Project MCP (optional) | server name, session/status tools, typed tools to prefer, raw fallback | `mcp__acme__list_orders` |
 | §15 Issue tracker | tracker, project key, **ticket id pattern**, never-touch projects, issue types, labels, assignment rule, transitions, attachment limits | `Jira · APP · APP-\d+ · pass → Ready for release` |
-| §16 QA policy | verdict policy (strict-binary default), sub-agents allowed/disabled, execute every case, completion gate advisory/enforced, perf thresholds, report language, who sends customer messages | `strict-binary · sub-agents allowed · gate advisory` |
+| §16 QA policy | verdict policy (strict-binary default), sub-agents allowed/disabled, execute every case, completion gate advisory/enforced, perf thresholds, UI languages in scope, browsers / devices in scope, report language, who sends customer messages | `strict-binary · sub-agents allowed · gate advisory` |
 | §17 Plugins | `superpowers`, `mattpocock-skills` installed or not | `not installed` |
 | §18 Demo defaults | voice, rate, language, badge text, demo folder | `en-US-JennyNeural · -3% · "DEMO · TEST DATA"` |
 

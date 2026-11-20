@@ -61,7 +61,7 @@ Pick the **QA mode** (qa-standards -> QA Modes). If the user didn't state one, i
 
 The Scope Lock is the contract handed to all three agents. Do not silently narrow scope to make a PASS easier.
 
-## Step 0b: Impact Analysis (REQUIRED for regression / bugfix; recommended always)
+## Step 0b: Impact Analysis (REQUIRED for full / regression / bugfix; recommended always)
 
 Before dividing the work, trace the blast radius per qa-standards -> Impact Analysis: shared FE components (grep imports), shared API endpoints (other features / roles / params), shared DB tables/columns (reports, dashboards, exports, other endpoints), async consumers (cron / serverless functions / queues / storage events / email — `PROJECT-PROFILE.md §11`), caches & snapshots (client-side cache keys, snapshot tables (`PROJECT-PROFILE.md §11`)), downstream reports/exports (CSV columns, dashboards, printed/PDF outputs). Feed results into the Scope Lock "Indirect blast radius" row and split them across the agents below. **A change is in scope plus everything this surfaces — validate the full flow and the blast radius, not the diff.**
 
@@ -147,7 +147,7 @@ Cover every cell of the coverage matrix (roles, states, inputs incl. negative/bo
 
 ## Step 2: Launch Agents in Parallel
 
-Use the `Agent` tool to launch all enabled agents simultaneously in a SINGLE message (this enables true parallelism). Pass each agent the Scope Lock (including "Build under test"), its slice of the blast radius, its register row IDs, the Mutation Safety Gate, and the Evidence Ledger requirement with provenance (Env / Branch-Commit / Captured at on every row). Each lane returns: PASS/FAIL per case with Expected vs Actual, its ledger rows, and its register rows.
+Use the `Agent` tool to launch all enabled agents simultaneously in a SINGLE message (this enables true parallelism). Pass each agent the Scope Lock (including "Build under test"), its slice of the blast radius, its register row IDs, the Mutation Safety Gate, and the Evidence Ledger requirement with provenance (Env / Branch-Commit / Captured at on every row). Each lane returns: PASS/FAIL per case with Expected vs Actual, its ledger rows, and its register rows. In full / regression / bugfix / release mode every blast-radius area a lane tests is a register row named `Regression: <area>` (completion gate check #21).
 
 ### Agent 1: Browser/UI Tester (Browser on)
 ```
@@ -182,6 +182,7 @@ ALSO, for each affected page, run these three checks using the named skill as th
 8. Responsive layout (the `visual-regression` method): resize the page to Desktop 1440, Tablet 768, and Mobile 375 (mcp__playwright__browser_resize) and screenshot each; look for horizontal overflow, text truncation cutting real content, element overlap/misalignment, broken wrapping, and off-screen/clipped elements.
 9. Accessibility (the `a11y-test` method): keyboard navigation + focus order/visibility (Tab through interactive elements), ARIA labels/roles + semantics, and color-contrast against WCAG AA; flag missing labels and unannounced errors.
 10. Hidden errors (the `observability-check` method): console errors + failed/slow 4xx/5xx network calls + backend 5xx — surface what the UI hides even when the screen looks fine.
+11. Core-page sweep (qa-standards -> Core-page sweep): for each role in <core pages: PROJECT-PROFILE.md §8>, set the `qa-core-pages` sessionStorage config with browser_evaluate, then call browser_run_code_unsafe with filename .claude/skills/browser-test/scripts/core-page-sweep.js. Return one `Core-page sweep: <route>` register row per page (completion gate check #20).
 
 You ARE that specialist agent — your instructions, tools and preloaded qa-standards are already active. Do NOT re-read your own definition file.
 Save all screenshots with an explicit path — pass `filename: qa-evidence/<run folder>/<name>.png` to browser_take_screenshot (a bare filename lands in the repo root, NOT qa-evidence).

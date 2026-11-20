@@ -2,7 +2,7 @@
 name: qa-validate
 description: Use when a single user story, bug, or feature needs a lighter end-to-end cross-layer validation (DB / API / Browser) than the full /full-qa cycle, ending in a ready / not-ready call. Triggers include "validate this story", "qa-validate APP-xxx", "check this fix end to end", "does this feature work across all layers". Reach for /full-qa instead when the scope is a PR/release needing a strict GO/NO-GO with code review, security and perf phases.
 argument-hint: "user-story or bug description"
-allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "Agent", "Agent(qa-verdict-auditor)", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(qa-standards)", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(test-cases-generator)", "Skill(observability-check)", "Skill(ai-output-eval)", "Skill(bug-report)", "Skill(bug-verifier)", "Write"]
+allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "Agent", "Agent(qa-verdict-auditor)", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(qa-standards)", "Skill(prompt-generator)", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(test-cases-generator)", "Skill(observability-check)", "Skill(ai-output-eval)", "Skill(bug-report)", "Skill(bug-verifier)", "Write"]
 ---
 
 # QA Validation Workflow
@@ -42,7 +42,11 @@ Do NOT guess scope from conversation. Do NOT run any query/call/click until scop
 
 ---
 
-## Step 0a: Six questions + QA Mode + Scope Lock (REQUIRED — before any tool runs)
+## Step 0: Run with decision (REQUIRED — before Step 0a)
+
+`Skill(prompt-generator)` with `$ARGUMENTS` and the words "Run with only": one block deciding `/goal` / `/loop` / neither, each with its reason; print it and keep going (the owner arms `/goal` whenever they want; the run never waits). Ask for the LIGHT form only when the owner wants a prompt; a prompt the owner pastes is reused (prompt-generator → Forms → Reuse).
+
+## Step 0a: Six questions + QA Mode + Scope Lock (REQUIRED — after Step 0, before any tool runs)
 
 **Six questions first** (qa-standards -> The six questions): write them out explicitly (2-6 lines) before the first tool runs —
 1. **What is requested?** (the literal ask, and the mode it implies)
@@ -74,7 +78,9 @@ Do not silently narrow scope to make a PASS easier. If you must drop coverage, s
 
 ## Step 0b: Impact Analysis (REQUIRED for regression / bugfix; recommended always)
 
-Before generating cases, trace the blast radius per qa-standards -> Impact Analysis: shared FE components (grep imports), shared API endpoints (other features / roles / params), shared DB tables/columns (reports, dashboards, exports, other endpoints), async consumers (cron / serverless functions / queues / storage events / email — `PROJECT-PROFILE.md §11`), caches & snapshots (client-side cache keys, snapshot tables (`PROJECT-PROFILE.md §11`)), downstream reports/exports (CSV columns, dashboards, printed/PDF outputs). Feed results into the Scope Lock "Indirect blast radius" row and into Phase 0 cases. **A change is in scope plus everything this surfaces.**
+**Every qa-validate run** also runs qa-standards -> Core-page sweep (one register row `Core-page sweep: <route>` per page of `<core pages: PROJECT-PROFILE.md §8>`; Browser off -> one NOT APPLICABLE row citing §2), whatever the story names; **a smoke after a deploy or for a release** also runs Impact Analysis item 0 (the release diff).
+
+Before generating cases, trace the blast radius per qa-standards -> Impact Analysis: shared FE components (grep imports), **shared text files** (each changed key in `<shared text files: PROJECT-PROFILE.md §9>` and every page that reads it), item **1b** (declared scope vs the real diff), shared API endpoints (other features / roles / params), shared DB tables/columns (reports, dashboards, exports, other endpoints), async consumers (cron / serverless functions / queues / storage events / email — `PROJECT-PROFILE.md §11`), caches & snapshots (client-side cache keys, snapshot tables (`PROJECT-PROFILE.md §11`)), downstream reports/exports (CSV columns, dashboards, printed/PDF outputs). Feed results into the Scope Lock "Indirect blast radius" row and into Phase 0 cases. **A change is in scope plus everything this surfaces.**
 
 **If the scope is a PR / commit / branch -> `Skill(pr-risk-analyzer)`** (GitHub or LocalRepos on) for the formal blast-radius risk map; feed its impact map into the Scope Lock "Indirect blast radius" row and into Phase 0 cases.
 
@@ -137,7 +143,7 @@ If `PROJECT-PROFILE.md §14` lists a project MCP server with typed tools for thi
 2. **Enumerate endpoints** — if Postman is on, use `mcp__postman-api-mcp__searchPostmanElements` to find relevant requests and `mcp__postman-api-mcp__getCollectionFolder` to list endpoints in the affected area; otherwise enumerate from <routes path: PROJECT-PROFILE.md §9> (and the typed-tool catalog in §14, if any). This defines the full API surface to cover.
 3. **Investigate code** — search FE components, BE routes/models, Admin controllers, DB schemas. Use `mcp__github__search_code` for cross-repo searches, `mcp__github__list_commits` for recent changes, `mcp__github__pull_request_read` for PR context (GitHub on), or `Read`/`Grep`/`Glob` on the local repos (LocalRepos on).
 4. **Generate test cases** via `Skill(test-cases-generator)` by category: Positive, Negative, Boundary, DB Integrity, API, UI, Security, Regression, E2E, Data Consistency — covering every cell of the coverage matrix (roles, states, inputs incl. negative/boundary, full flow, cross-tenant) from Step 0b. Derive the denominator from the code (origin x mode x type x action), never by guessing (qa-standards -> Escape classes, E12). Every case carries an **Input class** column (which kind of file / record / payload it exercises) and a **Path exercised** column (the API call / DB write / job run that proves it did something — not a toast).
-5. **Present summary table** with count per category and priority, then create TodoWrite tasks (P1 first). If the user specified scope, only generate for that scope plus its blast radius.
+5. **Present summary table** with count per category and priority, then list every case as an Execution Register row (P1 first). If the user specified scope, only generate for that scope plus its blast radius.
 
 ---
 
@@ -237,9 +243,8 @@ Every finding (bug OR proof-of-correct) maps to >=1 evidence row. **No evidence 
 Attachments live under `qa-evidence/<APP-nnn or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/`. Write them via `mcp__filesystem__write_file` (the read-only hook blocks `Write`/`Edit` for `qa-evidence/`); pass `filename: qa-evidence/<run folder>/<name>.png` to Playwright screenshots (a bare filename saves to the repo root). Findings/reports stay in the chat, not as markdown in `qa-evidence/`.
 
 ## Plugins & escalation (optional enhancers — `PROJECT-PROFILE.md §17`)
-- Non-obvious root cause after the cross-layer pass -> if the `superpowers` plugin is installed, `superpowers:systematic-debugging`; otherwise by hand: write 3-5 ranked, falsifiable hypotheses, change one variable at a time, and accept a cause only when a reproduction confirms it.
-- Before declaring ready / PASS -> if installed, `superpowers:verification-before-completion`; otherwise by hand: re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-8 against your own conclusions, and quote the evidence row behind every PASS.
-- Ambiguous or missing acceptance criteria with the owner present -> if the `mattpocock-skills` plugin is installed, `Skill(mattpocock-skills:grilling)` (numbered rounds, each question with a recommended answer; facts are looked up in-session); otherwise by hand: list the ambiguities as numbered questions with your recommended reading, ask, and cite each answer as the source of its expected result. Owner absent: record the ambiguity as an open question, take the code-derived reading, label it INFERRED.
+
+> Moved to [`references/deliverables.md`](references/deliverables.md) → Plugins & escalation (each enhancer with its by-hand equivalent).
 
 ---
 

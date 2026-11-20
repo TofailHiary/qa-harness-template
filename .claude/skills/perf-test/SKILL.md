@@ -22,6 +22,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 If no arguments: ask which page / endpoint / feature to measure, against which dataset size, and whether a baseline exists to compare with, then STOP.
 
 ---

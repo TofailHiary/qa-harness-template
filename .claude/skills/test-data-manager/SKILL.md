@@ -20,6 +20,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP: "What data scenario do you need? Describe the entities and states (e.g. 'a Manager in account X whose users have 0 orders', 'an upload of an image-only PDF')." Do not guess.
 
@@ -79,7 +81,7 @@ Prefer platform-made fixtures (admin panel / typed tools / API) over raw INSERTs
 1. Confirm the change is in scope and the minimal way to reach the state.
 2. Prefer a **disposable, owned** record (your test tenant / test account from §7) over touching shared data. Never prepare data in prod.
 3. **SELECT + log the full original state** of every row you will touch — side tables included.
-4. Write the **snapshot** (the rollback source-of-record) to `qa-evidence/<scenario-slug>/snapshot.json` via `mcp__filesystem__write_file`.
+4. Write the **snapshot** (the rollback source-of-record) to `qa-evidence/<TICKET-KEY or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/<finding-id>_snapshot.json` via `mcp__filesystem__write_file`.
 5. Build the rollback plan (re-INSERT / UPDATE statements in FK-safe order) BEFORE mutating.
 6. Make the minimal change. `UPDATE` / `DELETE` need a `WHERE`; never hard-DELETE — use the table's own mechanism (status / `deleted_at`).
 7. **A 200 from an admin form or an API proves nothing.** SELECT the rows (and the side tables) after every step; stop at the first mismatch.
@@ -124,7 +126,7 @@ When the scenario needs a whole new tenant, account tree or fixture set rather t
 | PDF import | rotated pages | `<file>` | | | orientation handling |
 | PDF import | multi-column layout | `<file>` | | | reading order |
 | PDF import | 0-byte / corrupt / wrong extension / password-protected / oversize | `<files>` | | | validation + error path, no masked error |
-| CSV / roster import | header variants, BOM / encoding, empty file, one row, max rows, duplicate natural key across rows, one email shared by two different people | `<files>` | | | parser branches + merge / collision logic |
+| CSV / roster import | header variants, BOM / encoding, empty file, one row, max rows, duplicate natural key across rows, one email shared by two different people, a referenced name that matches two records in scope (one soft-deleted, one active) | `<files>` | | | parser branches + merge / collision logic; which record a name lookup links to |
 | Image upload | each allowed type x size boundary; SVG with script | `<files>` | | | type + size validation, sanitisation |
 | Video / binary upload | each allowed type at and above the size limit | `<files>` | | | size-limit class |
 | Enum / mode values at 0% in prod | `<value>` | NEEDS PREP (seed it) | | | never-executed branches |
@@ -141,7 +143,7 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 
 1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it is allowed). Naming `reference_fixture_<slug>.md` for reusable fixtures, `project_<slug>.md` for a run; frontmatter `name` / `description` / `metadata.type`.
 2. **Cross-reference first** — grep the folder for the entity / scenario / fixture; UPDATE the existing entry (and the fixture registry) instead of filing a duplicate.
-3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
+3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<YYYY-MM-DD · title>](<file>.md) — <hook>`.
 4. **Content:** the scenario, environment, the located / prepared ids and their state, the MAX(id) baselines, confirmation of restoration (verified), new registry rows, any resource quirk learned (port, start command, replica snapshot date) — **never a password, token or root secret**.
 5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

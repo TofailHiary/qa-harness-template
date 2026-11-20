@@ -14,12 +14,13 @@ All project specifics (URLs, repos, branches, DB, roles, tracker, policies) come
 ## Contents
 **Inline (always loaded):** Scope Lock · Evidence Ledger · Mutation Safety Gate · Completion Gate ·
 Verdict Integrity · Execution Register · Evidence provenance · Verdict Contract · the six questions ·
-Escape classes E1-E13 · the run record (`references/run-record.md`, checked by `scripts/verdict_check.py`).
+Escape classes E1-E15 · the run record (`references/run-record.md`, checked by `scripts/verdict_check.py`).
 **References (read when the step needs them; every heading below still points there):**
-[`coverage-and-routing.md`](references/coverage-and-routing.md) (modes, impact, cross-layer, classification,
+[`coverage-and-routing.md`](references/coverage-and-routing.md) (modes, core-page sweep, impact, cross-layer, classification,
 case quality, MCP routing, plugins, skill sequence, environments) ·
 [`judgement.md`](references/judgement.md) (data resources, source hierarchy, fresh vs historical, reuse,
-judgement discipline) · [`memory-ritual.md`](references/memory-ritual.md).
+judgement discipline) · [`memory-ritual.md`](references/memory-ritual.md) ·
+[`report-contract.md`](references/report-contract.md) (evidence folder, Run line, gate-audit).
 **Before any verdict or audit, read `references/judgement.md`.**
 
 ---
@@ -27,6 +28,12 @@ judgement discipline) · [`memory-ritual.md`](references/memory-ritual.md).
 ## QA Modes — pick the gear before testing
 
 > Moved to [`references/coverage-and-routing.md`](references/coverage-and-routing.md). Pick smoke / targeted / regression / bugfix / full / release from the table there and state the mode and why before testing.
+
+---
+
+## Core-page sweep — every smoke, run skill and post-deploy check
+
+> Moved to [`references/coverage-and-routing.md`](references/coverage-and-routing.md). Whatever the ticket names: each role, its core pages (`<core pages: PROJECT-PROFILE.md §8>`), the raw-text scan; one register row `Core-page sweep: <route>` per page (gate check #20).
 
 ---
 
@@ -75,12 +82,7 @@ Every finding (bug OR proof-of-correct) maps to at least one evidence item. Outp
 - **No DB / API / Browser comparison = no cross-layer claim.** Don't say "the API is wrong" without the DB row next to it.
 - Save proof for **PASS** too, not only bugs — a green result needs evidence it was actually exercised.
 
-**Evidence folder convention** (`qa-evidence/`, root per `PROJECT-PROFILE.md §12`):
-- **ONE convention, one folder per run:** `qa-evidence/<TICKET-KEY or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/` (e.g. `qa-evidence/APP-558-20260827/`, `qa-evidence/BUG-20260827-143012/`). `HHMMSS` avoids collisions across parallel sessions.
-- Inside: API responses (`<slug>_api-response.json`), screenshots (`<slug>.png`), logs (`<slug>.log`), DB dumps (`<slug>.csv`), notes (`<slug>_evidence.md`), the run's prompt (`00-prompt-<subject>.md`), config (`.yml`) where relevant.
-- **HOW to write** — the read-only QA hook BLOCKS the `Write`/`Edit` tools for `qa-evidence/`. Use one of: (1) `mcp__filesystem__write_file` with the target path (preferred); (2) Bash heredoc into the folder; (3) **Playwright screenshots — pass an explicit path:** call `mcp__playwright__browser_take_screenshot` with `filename: qa-evidence/<run-folder>/<name>.png` so the PNG lands in `qa-evidence/`. A BARE filename saves to the repo root, NOT `qa-evidence/`; the PostToolUse copy hook is only a backstop.
-- Bug *reports* and findings live in the chat conversation (and the tracker), not as markdown files in `qa-evidence/`. The folder holds attachments only - plus the run record `run.json` and the audit `package.md` (`references/run-record.md`).
-- When you hand evidence to the user, give **one full absolute folder path** (the run folder) plus a relative link, then list only the files they need.
+**Evidence folder convention** (`qa-evidence/`, root per `PROJECT-PROFILE.md §12`): one folder per run, `qa-evidence/<TICKET-KEY or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/`, attachments only, written via the filesystem MCP or a Bash heredoc; screenshots with an explicit `filename: qa-evidence/<run-folder>/<name>.png`. Full convention: [`references/report-contract.md`](references/report-contract.md).
 
 ---
 
@@ -135,7 +137,7 @@ If rollback is impossible (no clean restore path) -> **STOP and ask the user** b
 
 ## Memory Ritual — MANDATORY post-session
 
-> Moved to [`references/memory-ritual.md`](references/memory-ritual.md). Every skill and agent updates memory before claiming completion (each skill's Post-Session block carries the steps); grep first, update instead of duplicating, mark disproved facts SUPERSEDED, verify with ls -la, HALT if it cannot be persisted.
+> Moved to [`references/memory-ritual.md`](references/memory-ritual.md). Every skill and agent updates memory before claiming completion (each skill's Post-Session block carries the steps); grep first, update instead of duplicating, mark disproved facts SUPERSEDED, verify with ls -la, HALT if it cannot be persisted. **Exception:** inside a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`) only the caller writes memory (one file per run).
 
 ---
 
@@ -169,6 +171,7 @@ in `full` / `release` / `regression` modes — it is a checklist you must be abl
 - a defect lacks a layer classification, or FE/BE ownership is unresolved when code or network evidence could settle it
 - a write path was never exercised (every case recorded `validation-only`)
 - a generated case was not executed ("priority only orders the work" — `PROJECT-PROFILE.md §16`, default: execute every case)
+- a NOT YET VERIFIED row rests on an operational reason ("not run", "no shell") — try live -> local harness / container copy -> test doubles -> code read first, and name the structural blocker (gate check #15)
 - the parent verdict contradicts an active blocker
 
 **Explicitly NOT valid reasons to stop:** HTTP 200 · UI value equals API value · the page renders ·
@@ -180,6 +183,7 @@ with the reason and what would unblock it.
 
 The `completion-gate.py` hook (Stop / SubagentStop) is the mechanical backstop for this section: advisory by default, blocking when `QA_GATE_ENFORCE=1` or `harness-config.json → gate.enforce` is set.
 - **The run record agrees with itself:** `verdict_check.py qa-evidence/<run-folder>` exits 0 (the completion gate runs the same check when a verdict names the run folder).
+- **The report passes the gate's own checks:** `python .claude/skills/qa-standards/scripts/gate-audit.py --assume-passed <draft report>` exits 0 before AUDIT_PASSED is written ([`references/report-contract.md`](references/report-contract.md)).
 
 ## Verdict Integrity — challenge yourself before the user has to
 
@@ -281,6 +285,8 @@ Skill aliases are permitted ONLY in parentheses after the canonical word: `qa-va
 
 **Confidence line — mandatory with every run verdict:** `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: <one line or "none">`. Confidence is proportional to evidence: if 8 of 10, say 8 of 10. `M` is the code-derived matrix size. Recompute it with `scripts/verdict_check.py` from `run.json`; never type it by hand.
 
+**Run line, case completeness, skills loaded** — every run report opens with the plain line `Run: <skill> | QA mode: <mode> | Audit: AUDIT_PASSED`; a passing audit adds the `Case completeness:` and `Skills loaded:` lines. Exact text + gate checks #18–#22: [`references/report-contract.md`](references/report-contract.md).
+
 **Ticket-transition rule:** a verdict that will change a tracker status (any mode, including `bug-verifier`) requires (1) a fresh live read of the ticket this run, (2) an audit pass returning AUDIT_PASSED on the package (findings + ledger + register + proposed verdict) — by `qa-verdict-auditor` in a fresh context, or in-session item by item against Verdict Integrity 1-10 when `§16` disables sub-agents, (3) the transition rules in `PROJECT-PROFILE.md §15` (read the available transitions live; never reuse an id from a previous session). A ruling from a developer ("this is intended") is recorded as **a ruling, not a fix** — the verdict says "PASS as ruled" and cites the comment. Never re-file or close tickets to repair a filing mistake without asking.
 
 ## Judgement Discipline
@@ -303,23 +309,25 @@ Every agent preloads this file, so this is where these gates become binding for 
 The full text of Rules 1-5 lives in `.claude/rules/anomaly-disposition.md` (always loaded in the main session).
 
 A bug reaches production through one of these doors. Each has a gate now. **Name the door in the verdict
-when you close one.**
+when you close one.** Examples: [`references/judgement.md`](references/judgement.md).
 
-| # | Escape class | What it looks like *(illustrative)* | Gate |
-|---|---|---|---|
-| E1 | **Dissolved anomaly** — seen, then closed as "by design" / "workaround" / "unresolved" | an unexpected merge called by-design in a note; a masked error "parked" | Rule 1: ticket, or "expected" WITH A CITED SOURCE. Gate check #10 flags the phrases. |
-| E2 | **Data release without QA** — content import changes reachable code paths | a bulk import that made two latent bugs live the same day | Rule 2 pre-flight question + post-import re-test; `prod-sentinel` S5 detects imports |
-| E3 | **Latent assumption** — code assumes 1 / one branch / populated field; data grows past it | `[firstRow]` · an `else` arm never run · "the parser always returns text" | `Skill(latent-pattern-sweep)` crosses code vs PROD distribution |
-| E4 | **Same input every time** — the flow is green with one file/fixture | three runs, one text-layer PDF | Input-class column in every case; fixture registry in `test-data-manager` |
-| E5 | **Validation green ≠ feature green** — PASS proven by a toast, no write ever happened | five green cases, zero API calls; the write path had data loss | Path-exercised column; Rule 5; gate check #11 |
-| E6 | **Symptom fix** — the fix never touched the root-cause line | a PR that changed the component but left the root-cause line untouched | `git diff --name-only` must include the ticket's root-cause file; gate check #12 |
-| E7 | **Wrong repo** — the owner is a worker/Lambda, not FE/BE/Admin | the terminal writer lived in an integration repo | `bug-verifier`: trace the async chain to its terminal writer |
-| E8 | **Silent async no-op** — success flash, nothing created | an early `return` when a matching draft exists | verify the terminal DB state, never the enqueue |
-| E9 | **Masked error** — real failure reported as an unrelated exception | a `throw` commented out years ago | Rule 4: file it separately |
-| E10 | **Unwatched production** — damage accrues for weeks in one table | error rate tripled for a month, visible in one log table | `Skill(prod-sentinel)` weekly + after every deploy/import |
-| E11 | **Untested ship** — a ticket moves to a deploy state with no QA touch | a ticket at "ready to deploy" nobody tested | `env-health` release radar every session |
-| E12 | **Guessed denominator** — "7 of 12" where the code has 24 cells | the matrix was counted from intuition | `test-cases-generator` Step 1b: derive origin × mode × type × action from code |
-| E13 | **Knowledge decay** — the harness forgets; rotation silently broken | undated index entries never archived | `MEMORY.md` entries carry `YYYY-MM-DD` in the link title; archives pointer in the header |
+| # | Escape class | Gate |
+|---|---|---|
+| E1 | **Dissolved anomaly** — seen, then closed as "by design" / "workaround" / "unresolved" | Rule 1: ticket, or "expected" WITH A CITED SOURCE. Gate check #10 flags the phrases. |
+| E2 | **Data release without QA** — content import changes reachable code paths | Rule 2 pre-flight question + post-import re-test; `prod-sentinel` S5 detects imports |
+| E3 | **Latent assumption** — code assumes 1 / one branch / populated field; data grows past it | `Skill(latent-pattern-sweep)` crosses code vs PROD distribution |
+| E4 | **Same input every time** — the flow is green with one file/fixture | Input-class column in every case; fixture registry in `test-data-manager` |
+| E5 | **Validation green ≠ feature green** — PASS proven by a toast, no write ever happened | Path-exercised column; Rule 5; gate check #11 |
+| E6 | **Symptom fix** — the fix never touched the root-cause line | `git diff --name-only` must include the ticket's root-cause file; gate check #12 |
+| E7 | **Wrong repo** — the owner is a worker/Lambda, not FE/BE/Admin | `bug-verifier`: trace the async chain to its terminal writer |
+| E8 | **Silent async no-op** — success flash, nothing created | verify the terminal DB state, never the enqueue |
+| E9 | **Masked error** — real failure reported as an unrelated exception | Rule 4: file it separately |
+| E10 | **Unwatched production** — damage accrues for weeks in one table | `Skill(prod-sentinel)` weekly + after every deploy/import |
+| E11 | **Untested ship** — a ticket moves to a deploy state with no QA touch | `env-health` release radar every session |
+| E12 | **Guessed denominator** — "7 of 12" where the code has 24 cells | `test-cases-generator` Step 1b: derive origin × mode × type × action from code |
+| E13 | **Knowledge decay** — the harness forgets; rotation silently broken | `MEMORY.md` entries carry `YYYY-MM-DD` in the link title; archives pointer in the header |
+| E14 | **Unseen screen** — the saved value was proven, the control on screen was never looked at | Every new or changed control gets a **Seen** row: open the screenshot (Read) and inspect the control in each state (on / off / disabled). A screen driven only by form posts or API calls is NOT YET VERIFIED for UI |
+| E15 | **Unwritten case** — every written case ran, but the case that fails was never written | `test-cases-generator` Steps 1c + 1d (break-it cells, role × action grid, branch inventory, UI inventory, story-is-silent list); the case-completeness line in full-qa Phase 8a; gate check #18 |
 
-**Verdict-line rule:** when a run finds nothing, state which of E1–E13 were actively checked. An escape
+**Verdict-line rule:** when a run finds nothing, state which of E1–E15 were actively checked. An escape
 class not checked is a NOT YET VERIFIED row, not silence.

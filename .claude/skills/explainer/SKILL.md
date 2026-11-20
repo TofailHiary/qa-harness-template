@@ -1,16 +1,19 @@
 ---
 name: explainer
-description: Use when someone wants a change, feature, story or bug explained in plain language from a real user's point of view (Manager / User / Guest / Admin), as a before -> after scenario, even without formal acceptance criteria. Triggers include "explain this change as a user scenario", "what will the manager actually see now", "ELI5 this PR", "describe this bug in human terms", "write the release note line for this".
-argument-hint: "the change to explain — a PR number, ticket key, file/feature name, or a pasted diff"
+description: Use when someone wants something made plain: a reply they did not understand ("simplify", "I didn't understand", /explainer with no argument = the last reply), or a change, story or bug explained from a real user's point of view (Manager / User / Guest / Admin) as a before -> after scenario, even without formal acceptance criteria. Triggers include "ELI5 this PR", "what will the manager actually see now", "describe this bug in human terms", "write the release note line for this".
+argument-hint: "a message to simplify (empty = your last reply), or a PR number / ticket key / feature / pasted diff to explain"
 allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(qa-standards)"]
 ---
 
-# Explainer — what this change means for the real user
+# Explainer — make it plain: simplify a message, or tell a change as the user's story
 
 > **Capability gate:** This skill requires **any of GitHub/LocalRepos**. Before doing anything, read
 > `PROJECT-PROFILE.md` §2 (Capability Map). If that capability is `off`, STOP and tell the user:
 > "This project has no any of GitHub/LocalRepos configured, so `/explainer` is unavailable. Run
 > `/configure-project` to enable it." Do not call this skill's tools when gated off.
+>
+> **Exception:** the **Simplify** branch needs no capability — it rewrites a message already in the
+> conversation and runs on any project.
 >
 > **No profile at all? (user-level install - there is no `.claude/PROJECT-PROFILE.md`.)** Do not stop.
 > Ask once for what this skill needs - the change itself (pasted diff, PR text, ticket text or a local repo path), the product's user roles and the audience - label every conclusion that rests on those
@@ -19,7 +22,11 @@ allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__github__*", "mcp__claude_a
 > means: run `/configure-project`.
 
 
-Turn a technical change (PR / diff / ticket / code) into a plain-language, per-role story: "as a Manager, before you saw a blank chart; now you see your team's numbers." This is an explanation, not a test — there is **no verdict, no test plan, no Evidence Ledger, and no memory ritual**. The output is the explanation itself.
+Two branches, one goal: the reader understands at once.
+- **Simplify** — rewrite a reply or chat message the user did not understand, in plain words, point first.
+- **Change story** — turn a technical change (PR / diff / ticket / code) into a plain-language, per-role story: "as a Manager, before you saw a blank chart; now you see your team's numbers."
+
+This is an explanation, not a test — there is **no verdict, no test plan, no Evidence Ledger, and no memory ritual**. The output is the explanation itself.
 
 Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once per session (for the layer/role vocabulary and the project context only — the project's identity and domain are in `PROJECT-PROFILE.md §1`, its roles in §8; the QA gates do not apply to this utility).
 
@@ -27,14 +34,38 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 $ARGUMENTS
 
 ## If no arguments provided
-Ask, then STOP until answered:
-> "What change should I explain in user terms? Give me a PR number, a ticket key, a file/feature name, or paste the diff. If you already know the roles affected (<roles: PROJECT-PROFILE.md §8> — e.g. Admin / Manager / User / Guest), tell me — otherwise I'll infer them from the code."
+Run **Simplify** on your own previous reply in this conversation (the usual case: the user did not understand it). Only when there is no previous reply, ask, then STOP until answered:
+> "What should I make plain? Paste the message, or give a PR number, a ticket key, a file/feature name or a diff to explain. If you already know the roles affected (<roles: PROJECT-PROFILE.md §8> — e.g. Admin / Manager / User / Guest), tell me — otherwise I'll infer them from the code."
 
 Do NOT guess which change is meant. Do NOT explain the whole platform.
 
+## Pick the branch
+- A message, a reply, a chat or a screenshot of one -> **Simplify** (next section).
+- A PR, diff, ticket key, file or feature -> **Change story** (the workflow after it).
+
 ---
 
-## Workflow
+## Simplify
+1. **Find the point.** Read the whole message. Write its answer in one sentence: yes / no, works / broken, done / not done.
+2. **Keep what changes what the reader knows or does:** each status, each broken thing with its ticket key, each decision or action waiting for them. The rest stays in the original.
+3. **Write it plain.** Short sentences (about 15 words) and common words, in the language of the conversation (`PROJECT-PROFILE.md §16` report language / style). A technical term gets a 3-5 word meaning in brackets the first time.
+4. **Check the truth.** Every status matches the original exactly: broken stays broken, not checked stays not checked, numbers stay the same. If the original was unclear or wrong, say so in one line.
+
+Output:
+```
+**In short:** <the point, one sentence>
+
+- <item>
+- <item>
+(3-6 bullets)
+
+**You need to:** <the decision or action, or "nothing">
+```
+Done when the reader could act without reading the original, and every line passes step 4.
+
+---
+
+## Change story — workflow
 
 ### 1. Get the change
 - **PR / diff** -> `mcp__github__pull_request_read` (and `get_file_contents` / Read for surrounding context) when GitHub is `on`; local `git show` / `Read` when LocalRepos is `on`.
@@ -61,7 +92,7 @@ Close with a single sentence anyone non-technical understands — the whole chan
 
 ---
 
-## Output shape (the deliverable)
+## Change story — output shape
 
 ```
 ## What changed (in one line)
@@ -83,6 +114,7 @@ What's different for you: ...
 ```
 
 ## Guardrails
+- Simplify restates what is already known: it adds no new claim and runs no new check. A fact still open is written as "not checked yet".
 - Explain, don't test. No GO/NO-GO, no pass/fail, no bug-hunting (if a real bug is obvious while reading, mention it in one line and point to the proper QA skill — `bug-verifier` — do not investigate here).
 - Concrete over abstract: name the actual screen, the actual number, the actual click. Avoid "improves the experience" filler.
 - If you inferred the user impact (no story given), say so honestly rather than overstating certainty — label it "inferred from the code" rather than presenting it as the stated intent.
@@ -91,6 +123,8 @@ What's different for you: ...
 - No Evidence Ledger, no Scope Lock table, no memory write — this is a utility, not a QA run.
 
 ## Post-Session (MANDATORY — enforced)
+
+**Simplify** writes no memory file: it restates a message and records nothing new. The steps below apply to a change story.
 
 Update auto-memory before claiming completion — full ritual in qa-standards -> Memory Ritual. If it cannot be persisted -> **HALT and tell the user**; never report success.
 

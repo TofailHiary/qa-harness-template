@@ -72,11 +72,17 @@
 ## §8 Roles
 - Admin, Manager, User, Guest
 - (roles resolved via `user` → `user_account` → `role`)
+- **Core pages per role (core-page sweep):**
+  - User: `/home`, `/orders`, `/invoices`, `/profile`
+  - Manager: `/manager/dashboard`, `/manager/team`, `/manager/reports`, `/orders`
+  - Admin: `/admin/users`, `/admin/settings`, `/admin/audit-log`
 
 ## §9 Key code paths
 - **Frontend API layer:** acme-web/src/libs/api/, acme-web/src/libs/helpers/api.helper.ts
 - **Frontend pages / components:** acme-web/src/pages/, acme-web/src/components/
 - **Frontend route constants:** acme-web/src/routes.ts
+- **Shared text files (i18n / locale bundles):** acme-web/src/locales/en.json (default language), acme-web/src/locales/de.json
+- **Text-key prefixes (raw-text scan):** `common`, `errors`, `nav`
 - **Backend routes:** acme-api/routes/ (mounted in acme-api/server.js)
 - **Backend models:** acme-api/models/
 - **Auth middleware:** acme-api/middleware/auth.js
@@ -127,6 +133,8 @@
 - **Execute every generated case:** yes (priority only orders the work)
 - **Completion gate:** advisory (set `QA_GATE_ENFORCE=1` in `.claude/settings.json → env` to block)
 - **Perf thresholds:** template defaults (page load <3s / API P95 <500ms / payload <500KB)
+- **UI languages in scope:** English (the default); German only on screens a story names
+- **Browsers / devices in scope:** Chromium + WebKit on every screen of the journey, Firefox for forms and uploads; widths 1440 / 1366 / 768 / 375
 - **Report language / style:** English, short sentences, explain a term the first time it appears
 - **Customer-facing messages:** drafted by QA, sent by the manager
 

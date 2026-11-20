@@ -15,6 +15,11 @@ looks wrong, a path that behaves oddly — must end as **one** of:
 1. **A filed ticket** (or an explicit finding in the run's verdict), or
 2. **"Expected", WITH A CITED SOURCE** — quote it: acceptance criteria, a schema constraint, a code
    comment, a product decision with a name and date, or a written spec.
+   **The ticket comes first.** When the ticket or its AC describes this behaviour, quote that line: a code
+   comment, the current UI or a developer's intent cannot overrule it. A code comment counts only after you
+   checked that the ticket and AC are silent on it, and you say so (gate check #17). *(Illustrative: "the
+   generated file stays Ready after its source is edited" was closed as expected on a code comment while the
+   story's AC said an edit marks it outdated.)*
 
 **These are NOT dispositions and must never close an anomaly:**
 
@@ -32,7 +37,8 @@ minutes. Not filing can cost weeks of silent production damage.
 ### The "by design" test — run it BEFORE you type those words
 - Does the **schema** allow it? A scalar foreign key is 1:1 — it cannot represent N.
 - Does the **UI** promise it? Plural labels, per-row counts, per-row status badges.
-- Is there an **AC, code comment, or named product decision** that says so?
+- Is there an **AC or a named product decision** that says so? A code comment counts only when the ticket
+  and AC are silent on this behaviour (Rule 1).
 If all three are no, you invented the requirement. File the bug.
 
 ### Never write these phrases without an attached ticket id

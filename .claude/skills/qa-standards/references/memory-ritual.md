@@ -6,7 +6,7 @@ Part of `qa-standards`. Moved out of SKILL.md to keep the always-loaded file sma
 
 ## Memory Ritual — MANDATORY post-session
 
-**Every skill and sub-agent updates auto-memory before claiming completion.** Not optional. If memory cannot be persisted (hook/path/disk error) -> **HALT and tell the user**; never report success.
+**Every skill and sub-agent updates auto-memory before claiming completion.** Not optional. **One exception:** a skill loaded inside a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`) writes no memory file of its own; the calling skill writes the run's single memory file (full-qa → Phase skill map). If memory cannot be persisted (hook/path/disk error) -> **HALT and tell the user**; never report success.
 
 1. **Create/update a memory file** under `<memory folder: PROJECT-PROFILE.md §12>` (the ONLY path the `Write` tool is allowed — use `Write` directly here). Naming: `project_<slug>.md` (QA runs), `feedback_<slug>.md` (guidance), `reference_<slug>.md` (pointers). Frontmatter:
    ```markdown

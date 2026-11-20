@@ -22,6 +22,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "Which CONFIRMED bug should I write up? Give the bug-verifier result (or the finding id and its evidence folder)."
@@ -165,7 +167,9 @@ Only when the user asks, file the report to the issue tracker configured in `PRO
 
 **Filing mistakes:** if a ticket went in with the wrong type, parent, project or fields, STOP and ask the owner how to correct it. Never re-file a replacement and never close or delete the mis-filed ticket on your own initiative — both leave noise in the tracker and break links.
 
-**Evidence attachments — KNOWN CONNECTOR LIMIT (tell the user every time):** the Atlassian MCP connector exposes create/edit/comment/link but has **NO file-attachment upload tool**. Screenshots/CSVs/logs in `qa-evidence/` therefore CANNOT be pushed into the issue from here. So on every tracker filing:
+**Evidence attachments — upload them yourself when the tracker tool can.** If `PROJECT-PROFILE.md §15` -> Attachments names a tracker MCP tool that can attach files, then on every filing, re-test comment or evidence update: embed the Evidence Ledger as text (step 1 below), upload every evidence file of that finding (the absolute path under `qa-evidence/<run folder>/`, one call per file), read the attachment list back and report the attachment ids in the chat. Only a file whose upload failed goes to the manual list of step 2, with the reason. Use such a tool only on the §15 project key — never on a project §15 lists under Never touch, even when the tool itself has no project filter.
+
+**Otherwise — KNOWN CONNECTOR LIMIT (tell the user every time):** the Atlassian MCP connector exposes create/edit/comment/link but has **NO file-attachment upload tool**. Screenshots/CSVs/logs in `qa-evidence/` therefore CANNOT be pushed into the issue from here. So on every tracker filing:
 1. Embed the Evidence Ledger as **text** in the description (DB query + result, API snippet, code `path:line`, repro URL).
 2. In the **chat reply only**, output an explicit **"Files to upload manually to <ISSUE-KEY>"** list — the exact `qa-evidence/<run folder>/*.png|csv|json|log` paths the user must drag into that issue by hand — so nothing is silently lost. Map each file to the issue it belongs to.
    **NEVER put this list (or any "files to upload" / "connector cannot attach" note) inside the ticket description or a ticket comment** — it is a private instruction to the owner, not ticket content.

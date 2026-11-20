@@ -2,6 +2,64 @@
 
 All notable changes to the QA harness template. Dates are ISO (YYYY-MM-DD).
 
+## 2.2.0 — 2026-11-20
+
+Ports the verdict-accuracy fixes that a private source setup made after 2.1 (generalized per
+`docs/maintainers/generalization-conventions.md`; the source's own policies stay out, see below).
+
+### Completion gate (staged — a human copies it in)
+- Checks **#15–#22**: NOT YET VERIFIED needs a structural blocker that was tried (#15); a run never asks whether
+  to run its own steps (#16); "expected" resting only on a code comment is refused while the ticket / AC are not
+  quoted (#17); an audited run verdict needs a full `Case completeness:` line (#18) and a `Skills loaded:` line
+  whose every ✓ matches a real Skill call in the session transcript (#19); every core page of
+  `PROJECT-PROFILE.md §8` needs a `Core-page sweep: <route>` row with a result (#20); a full / regression /
+  bugfix / release report needs `Regression: <area>` rows that ran (#21); every run report opens with the
+  **Run line** `Run: <skill> | QA mode: <mode> | Audit: AUDIT_PASSED` (#22).
+- Hook input is decoded as UTF-8 (non-ASCII concession phrases and check marks were garbled on Windows).
+- The gate belongs to the guard surface, so it ships staged: a human copies the new `completion-gate.py` into
+  the harness hooks folder (or starts Claude Code with `QA_HARNESS_ADMIN=1`). Gate unit tests 41/41; hook
+  red-team 209/209 with the staged gate.
+- `qa-standards/scripts/gate-audit.py` runs the gate's checks on a saved draft report (read-only;
+  `--assume-passed` scores it as if the audit had passed); the verdict audit runs it before AUDIT_PASSED.
+
+### Coverage
+- **Core-page sweep** (`qa-standards/references/coverage-and-routing.md`) in every smoke, run skill and
+  post-deploy check: each role's core pages are opened and scanned for raw `{{placeholders}}`, raw text keys
+  and leaked `undefined` / `NaN` / `[object Object]`. New `browser-test/scripts/core-page-sweep.js` (one call per
+  role, config via `sessionStorage`) and `raw-text-scan.js` (per-page fallback).
+- **Impact Analysis** items 0 (release diff: the code that ships, not the ticket list), 1b (declared scope vs
+  real diff) and **shared text files**; `qa-standards/scripts/i18n-placeholder-diff.mjs` finds locale keys
+  that gained a `{{word}}` and the callers that do not pass it (JSON locales; code modules only with `--eval-modules`).
+- `test-cases-generator` Step 1c (break-it cells) and Step 1d (role × action grid, branch inventory, UI
+  inventory, story-is-silent list) with the case-completeness line; escape classes **E14** (unseen screen)
+  and **E15** (unwritten case).
+- `browser-test` rewritten: UI inventory, control-by-control checks with screenshots opened, screen states,
+  user habits, roles and hand-off, media and files, a second engine via `scripts/xbrowser.js`
+  (Chromium / Firefox / WebKit, optional axe-core). `a11y-test` adds reflow and page-language checks.
+
+### Orchestration
+- `/full-qa` loads every phase skill with the Skill tool (Phase skill map), runs end to end without asking,
+  starts with `sync-repos`, reuses a pasted prompt, adds a Phase 2 **Possibly affected** list, runs
+  regression in full mode too (Phase 7b) and a core-page sweep in every mode (Phase 7c); audit items 4b–4f.
+  New `full-qa/references/step-0.md` and `references/audit.md`.
+- `prompt-generator`: FULL / LIGHT / Run with only / Reuse forms, Execution shape, Impact map and
+  Requirement register blocks. `release-check` and `qa-validate` get a Run-with-only Step 0, the release
+  diff and the sweep. Every run skill (incl. `qa-team`) prints the Run line.
+- A phase skill loaded inside a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`) uses the caller's Scope Lock
+  and writes no memory file of its own; the caller writes one.
+- `bug-report` uploads evidence itself when the §15 tracker tool can attach files.
+- `explainer` gains a Simplify branch (re-explain the last reply); new always-loaded
+  `rules/reply-style.md` (the harness now ships 8 rules).
+
+### Profile
+- §8 **Core pages per role**, §9 **Shared text files** and **Text-key prefixes**, §16 **UI languages in scope** and
+  **Browsers / devices in scope**; `/configure-project`
+  asks for them. Older profiles keep working (the gate falls back to "at least one sweep row").
+
+### Not ported (source-setup policies)
+- No sub-agents / auditor only on request / qa-team only when typed (the template keeps the §16 knob),
+  English only (became the §16 UI-languages knob), project-specific environment and schema facts.
+
 ## 2.1.1 — 2026-10-26
 
 ### Added

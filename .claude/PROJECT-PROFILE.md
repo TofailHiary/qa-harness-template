@@ -73,11 +73,14 @@
 
 ## §8 Roles
 - (list the project's user roles, e.g. Admin / Manager / User / Guest, and where roles live in the schema)
+- **Core pages per role (core-page sweep):** (one indented sub-bullet per role: the role name, then the pages that role meets first — landing page and main navigation — each route in backticks; see the example profile. Blank = the sweep derives the list from the §9 route constants and proposes it)
 
 ## §9 Key code paths
 - **Frontend API layer:**
 - **Frontend pages / components:**
 - **Frontend route constants:**
+- **Shared text files (i18n / locale bundles):** (locale files that every page reads; blank = none)
+- **Text-key prefixes (raw-text scan):** (top-level groups of the text keys that can show as 2-segment keys, e.g. `common`, `errors`; blank = only keys of 3+ segments are flagged)
 - **Backend routes (and where they are mounted):**
 - **Backend models:**
 - **Auth middleware:**
@@ -129,6 +132,8 @@
 - **Execute every generated case:** yes (default) | (exceptions)
 - **Completion gate:** advisory (default) | enforced (`QA_GATE_ENFORCE=1` in `.claude/settings.json → env`, or `gate.enforce` in `harness-config.json`)
 - **Perf thresholds:** template defaults | (overrides)
+- **UI languages in scope:** the app's default language only (default) | (list the languages QA tests, and where)
+- **Browsers / devices in scope:** Chromium + WebKit (Safari) on every screen of the journey, Firefox when forms / media / layout change; widths 1440 / 1366 / 768 tablet / 375 phone (default) | (your list)
 - **Report language / style:**
 - **Customer-facing messages:** (who sends them; QA drafts only)
 

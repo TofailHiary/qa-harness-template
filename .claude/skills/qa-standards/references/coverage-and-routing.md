@@ -10,16 +10,30 @@ Choosing a mode prevents over-testing (wasting a session) and under-testing (mis
 
 | Mode | When | Runs |
 |------|------|------|
-| **smoke** | Quick "is it alive" check | Login + one critical path + console/network scan |
+| **smoke** | Quick "is it alive" check | Login + one critical path + console/network scan + **core-page sweep** (below) |
 | **targeted** | One named feature / field / endpoint | Just that surface, all its roles + negative cases |
 | **regression** | After a change, guard nearby behavior | Changed feature **+ indirect blast radius** (see Impact Analysis) |
 | **bugfix** | Verify a fix landed | Reproduce original bug with the reporter's ORIGINAL input (must now fail to reproduce) + the fix must touch the root-cause `file:line` + regression around the root cause |
-| **full** | New/changed feature, full confidence | All phases: prompt → cases → code → DB → API → UI/E2E → security → perf → audit → report |
+| **full** | New/changed feature, full confidence | All phases: prompt → cases → code → DB → API → UI/E2E → security → perf → **regression** (all of `regression` + the code review's Possibly affected areas) → **core-page sweep** → audit → report |
 | **release** | Sign-off on a batch/release | `full` per area + release checklist + GO/NO-GO |
 
-`regression`, `bugfix`, and `release` **must** complete the Impact Analysis below — that is exactly where "obvious" bugs hide.
+`full`, `regression`, `bugfix`, and `release` **must** complete the Impact Analysis below — that is exactly where "obvious" bugs hide.
 
 **Scale effort to STAKES, not to prompt length.** A one-line request can carry a release decision. State the mode you picked and why.
+
+---
+
+## Core-page sweep — every smoke, run skill and post-deploy check
+
+Run it whatever the tickets name: the ticket list shows what was meant to change; the sweep shows what users meet first. The build under test carries every merged change, so the story's own screens are not the only ones it can break. A post-deploy or release smoke also runs Impact Analysis item 0 (release diff). *(Illustrative: a shared text key gained a placeholder for one page; two other pages that read the same key showed the raw `{{word}}` to every user for a week, behind a full run and two smokes that opened only the ticket's screens.)*
+
+1. **The page list** is `<core pages: PROJECT-PROFILE.md §8>`: per role, the pages that role meets first (landing page and main navigation). Sign in as every role listed there, whatever the story names, and open each page with real data (filters chosen, tables filled). A new navigation page joins the list in §8. No list in §8 yet → derive it from the frontend route constants (`PROJECT-PROFILE.md §9`) and the live menu, sweep it, and propose the list for §8 in the report.
+2. **One call per role.** Signed in as the role, call `mcp__playwright__browser_evaluate` with
+   `() => sessionStorage.setItem('qa-core-pages', JSON.stringify({ role: '<role>', routes: ['/a', '/b'], carry: ['<query params to keep>'], navigation: 'spa', keyPrefixes: ['<text-key prefixes: PROJECT-PROFILE.md §9>'] }))`,
+   then `mcp__playwright__browser_run_code_unsafe` (older Playwright MCP builds: `browser_run_code`) with `filename: .claude/skills/browser-test/scripts/core-page-sweep.js`. It visits each route inside the app, waits for the page to settle, runs the raw-text scan, collects console errors and failed requests per page and returns `{ role, pages, rows }` with ready register rows. Screenshot each page with a hit. `navigation: 'goto'` uses a full page load per route, for an app that is not a single-page app. **Fallback, one page at a time:** Read `.claude/skills/browser-test/scripts/raw-text-scan.js` and pass its TEXT as the `function` of `mcp__playwright__browser_evaluate` — never its path as `filename`: that is where `browser_evaluate` saves its result, so the script would be overwritten.
+3. **Each scan hit, console error and failed request is a finding** until a source shows the text is meant to be there: a raw `{{placeholder}}`, a raw text key, `undefined` / `NaN` / `[object Object]`, or text in a language outside `<UI languages: PROJECT-PROFILE.md §16>`.
+
+Done when every listed page has an Execution Register row `Core-page sweep: <route>` with a canonical result, its scan result and an evidence id (completion gate check #20 counts the routes in §8). On Prod (read-only) use the fixtures of `PROJECT-PROFILE.md §7`; a role with no Prod fixture runs on Test with the same build, and the row says so. Browser `off` in §2 → the rows are NOT APPLICABLE citing §2.
 
 ---
 
@@ -27,10 +41,15 @@ Choosing a mode prevents over-testing (wasting a session) and under-testing (mis
 
 For every change under test, enumerate the blast radius **before** writing the verdict. This is the antidote to "we only tested the diff."
 
+**0. Release diff** — for a release, a release smoke or a post-deploy check, the change set is the code that ships, not the ticket list. Per repo (`PROJECT-PROFILE.md §3`): `git -C <repo> diff --name-only <from>..<to>`, where `<from>` is the ref last deployed to the target environment (from the deploy record or the production branch in `PROJECT-PROFILE.md §3`; when neither names it, ask once and label the diff INFERRED) and `<to>` the release ref (before a deploy: the production branch `..` the release branch; after it: the previous deploy `..` the new one). Map every changed file to its surface (`.claude/references/system-map.md`). A changed file that no release ticket covers is in scope with its own register row.
+
 **1. Direct** — what the diff literally touches: the changed component, route, query, column.
+
+**1b. Declared scope vs real diff** — put the story's stated area (its description, AC and design) beside the real diff (`git diff --name-only` in every repo it touches). Every file and text key changed outside the stated area joins the scope with its own register row. *(Illustrative: a story said its text changes were limited to one feature's pages; the same commit changed two shared keys that two other pages read.)*
 
 **2. Indirect (where obvious bugs hide)** — trace each outward:
 - **Shared FE components** — is the changed component reused on other pages? Grep imports.
+- **Shared text files** — `<shared text files: PROJECT-PROFILE.md §9>` (i18n / locale bundles) feed every page. For each changed key, grep its callers, template-literal prefixes too (`` t(`a.b.${key}`) ``); each caller page joins the scope. Run `node .claude/skills/qa-standards/scripts/i18n-placeholder-diff.mjs <from-ref> <to-ref> --repo <frontend repo> --locale <locale file>` (a `.js` / `.ts` locale module also needs `--eval-modules`: it runs that module's code, so use it only on a ref you trust): each MISSING VALUE or SUSPECT row is a finding; exit 3 lists the page files with keys to check by hand — open each one's page once.
 - **Shared API endpoints** — do other features call the same endpoint? Different params/roles?
 - **Shared DB tables/columns** — what else reads/writes this table? Reports, dashboards, exports, other endpoints.
 - **Async consumers** — cron jobs, workers/Lambdas, queues, storage events, email (`PROJECT-PROFILE.md §11`). Trace an async chain to its **terminal writer** — the enqueue proves nothing.
@@ -49,6 +68,11 @@ For every change under test, enumerate the blast radius **before** writing the v
 | Path exercised | `validation-only` vs `write` — a write case is closed only by the network log AND a DB read-back |
 | Cross-tenant | other accounts/tenants cannot see or act on this data |
 | Regression | the indirect areas above still behave |
+| Role × action | every role in scope + a role that must be refused + the same role in another tenant + signed out, × every action and screen (`test-cases-generator` Step 1d) |
+| Branches | both sides of every decision in the changed code (`test-cases-generator` Step 1d) |
+| UI controls | every control on every screen of the journey, in each state, seen in an opened screenshot (`browser-test`; E14) |
+| Engines | `<browsers / devices: PROJECT-PROFILE.md §16>`; default Chromium, plus WebKit (Safari / iPad) on every screen of the journey, Firefox when forms, media or layout change (`browser-test`) |
+| Language | `<UI languages: PROJECT-PROFILE.md §16>` on every screen; output the story itself produces, in each language the story names |
 
 If a dimension is untested, it is a coverage gap — name it in the report, do not imply it passed.
 
@@ -141,7 +165,7 @@ The built-in `/debug` (Claude Code) is a lighter alternative for a quick, single
 
 ## Recommended Skill Sequence
 
-A typical full validation flows: **prompt-generator (Step 0: the researched, self-contained prompt that decides /goal and /loop) -> sync-repos -> env-health -> login -> scope-lock (this module) -> test-data-manager -> test-cases-generator -> pr-risk-analyzer -> code-review -> db-check -> api-test -> browser-test -> security-review -> perf-test -> bug-verifier -> bug-report -> verdict audit -> qa-report** (memory write at each step). `full-qa` and `qa-team` orchestrate this; `qa-validate` is the lighter cross-layer path; `release-check` is the release-level orchestrator. `bug-verifier` precedes `bug-report` — never report an unverified bug.
+A typical full validation flows: **sync-repos -> prompt-generator (Step 0: the researched, self-contained prompt that decides /goal and /loop) -> scope-lock (Step 0a, this module) -> pr-risk-analyzer (Step 0b) -> test-cases-generator (Phase 0) -> env-health + login + test-data-manager (Phase 1) -> code-review -> db-check -> api-test -> browser-test -> security-review -> perf-test -> regression-runner (full / regression / bugfix / release) -> core-page sweep -> bug-verifier -> bug-report -> verdict audit (Phase 8a) -> qa-report** (a skill run on its own writes memory; inside an orchestrator only the orchestrator writes, once). `full-qa` and `qa-team` orchestrate this; `qa-validate` is the lighter cross-layer path; `release-check` is the release-level orchestrator. `bug-verifier` precedes `bug-report` — never report an unverified bug.
 
 **Specialized skills — slot in when relevant:** `regression-runner` (drive the blast radius after a change) · `visual-regression` + `a11y-test` (UI depth) · `observability-check` (errors the UI hides) · `flaky-race-verifier` (intermittent/race bugs) · `ai-output-eval` (computed / model-generated outputs: scores, recommendations, KPIs, report figures) · `latent-pattern-sweep` (code assumptions vs live data distribution; mandatory after a bulk import) · `prod-sentinel` (read-only production anomaly scan, weekly and after deploys/imports) · `test-together` (guided pair-testing in a shared browser) · `evidence-manager` (capture + ledger proof) · `automation-writer` (confirmed manual case -> script) · `explainer` (plain-language, per-role change summary) · `release-note` (customer-facing notes) · `demo-creator` (narrated demo video of a flow — a delivery tool, not a test).
 

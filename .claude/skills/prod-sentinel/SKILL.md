@@ -28,6 +28,8 @@ Follows `.claude/rules/anomaly-disposition.md`: every anomaly this finds ends as
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "Full scan against the recorded baseline (default), or a focused scan (one table / one async chain / one content event)? Is there a deploy or import time to compare before and after?"

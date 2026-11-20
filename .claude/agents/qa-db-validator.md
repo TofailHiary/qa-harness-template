@@ -33,7 +33,7 @@ Follows the shared standard — `.claude/skills/qa-standards/SKILL.md` is preloa
 - **Host / port / DB / user:** `PROJECT-PROFILE.md §6` (test row)
 - **Tool:** `<DB tool: PROJECT-PROFILE.md §6>` (template default `mcp__mcp_server_mysql__mysql_query`; `/configure-project` rebinds it for other engines — adapt `DESCRIBE` / `SHOW INDEX` syntax to the engine in §4)
 
-**CRITICAL:** Run queries ONE AT A TIME. Never execute queries in parallel. Schema-qualify table names when the server hosts several databases.
+Run queries one at a time, not in parallel — parallel calls can cascade into DB MCP errors. Schema-qualify table names when the server hosts several databases.
 
 ## Key Tables
 

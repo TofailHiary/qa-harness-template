@@ -22,6 +22,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP: "Which flow or page should I instrument for hidden errors, and as which role? I'll run it while watching console, network, and the backend." Do not pick a flow from conversation; do not navigate until the target is known.
 
@@ -56,6 +58,9 @@ Inspect every request the flow made and flag three classes:
 - **Slow** — calls with notably high duration that risk timeouts or jank (note the duration; correlate with any spinner the user sees; thresholds per `/perf-test` unless `PROJECT-PROFILE.md §16` sets others).
 
 Also note the **absent** request: a write step that fired no call at all (a cached response, a local-state-only save) is recorded as `Path exercised = validation-only` and is not a PASS for the write.
+
+## Step 3b: Page text — the raw-text scan
+On every page of the flow, Read `.claude/skills/browser-test/scripts/raw-text-scan.js` and pass its text as the `function` of `mcp__playwright__browser_evaluate` (never as `filename`: that is the tool's output file). Each hit (a `{{…}}` slot, a raw text key, `undefined` / `NaN`) is a finding even when console and network are clean; in the Step 5 table, Where surfaced = page text. *(illustrative: a raw `{{word}}` column header sat on two pages for a week with a clean console and a clean network log.)*
 
 ## Step 4: Server-side confirmation
 For each suspicious call from Step 3, confirm it's real on the backend, not a browser artifact:

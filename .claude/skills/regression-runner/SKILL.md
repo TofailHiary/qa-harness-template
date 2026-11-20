@@ -23,6 +23,10 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
+Each matrix row is an Execution Register row `Regression: <area>` with a canonical result, standalone or for a caller (full-qa Phase 7b; completion gate check #21).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "What change/PR/feature should I run a regression around, and what does it touch (changed component / endpoint / table / report)? I regression-test the INDIRECT blast radius — the shared things the change reuses — not the changed feature itself."
@@ -32,14 +36,13 @@ Do NOT guess the change from conversation. Do NOT regression-test the whole plat
 ---
 
 ## Rules
-1. Use extended thinking proportional to blast-radius size.
-2. **Scope = the INDIRECT blast radius, not the diff.** The changed feature is assumed already validated (by /full-qa or its PR review); this skill guards everything *downstream and adjacent*.
-3. No assumptions — every "still works" needs a baseline and an actual. Code is truth.
-4. Every cell of the regression matrix maps to >=1 Evidence Ledger row. No evidence = no finding; capture proof for PASS too.
-5. A difference from the expected baseline is a **regression candidate** — confirm it with `Skill(bug-verifier)` BEFORE it counts as a bug (rules out stale data / cache / env / wrong baseline).
-6. This skill is read-only by default. If a check needs a write, the Mutation Safety Gate applies (below).
-7. Track each indirect area as a TodoWrite task; close it only when its matrix row has a Pass/Fail + evidence and its register row has a Result.
-8. The verdict uses the canonical words of qa-standards -> Verdict Contract and is independently audited BEFORE it is stated.
+1. **Scope = the INDIRECT blast radius, not the diff.** The changed feature is assumed already validated (by /full-qa or its PR review); this skill guards everything *downstream and adjacent*. The core-page sweep (qa-standards -> Core-page sweep) is the caller's one platform-wide pass and does not widen this scope; a standalone run (no caller) runs the sweep itself.
+2. No assumptions — every "still works" needs a baseline and an actual. Code is truth.
+3. Every cell of the regression matrix maps to >=1 Evidence Ledger row. No evidence = no finding; capture proof for PASS too.
+4. A difference from the expected baseline is a **regression candidate** — confirm it with `Skill(bug-verifier)` BEFORE it counts as a bug (rules out stale data / cache / env / wrong baseline).
+5. This skill is read-only by default. If a check needs a write, the Mutation Safety Gate applies (below).
+6. Track each indirect area as a regression-matrix row; close it only when the row has a Pass/Fail + evidence and its register row has a Result.
+7. The verdict uses the canonical words of qa-standards -> Verdict Contract and is independently audited BEFORE it is stated.
 
 ---
 
@@ -78,23 +81,25 @@ recomputes the confidence line and the run verdict; never type them by hand. `--
 Take the blast radius from `Skill(pr-risk-analyzer)` output if it ran this session; otherwise derive it via qa-standards -> Impact Analysis. Trace each outward and list concrete targets (file / endpoint / table / job / report):
 
 - **Shared FE components** — is the changed component imported on other pages? `Grep` its imports / `mcp__github__search_code`. Each other page that renders it is an indirect area.
+- **Shared text files** — a changed key in `<shared text files: PROJECT-PROFILE.md §9>`: every page that reads it is an indirect area (qa-standards -> Impact Analysis; `node .claude/skills/qa-standards/scripts/i18n-placeholder-diff.mjs <from-ref> <to-ref> --repo <frontend repo> --locale <locale file>`).
 - **Shared API endpoints** — do other features call the same route (different params/roles)? List each caller.
 - **Shared DB tables/columns** — what else reads/writes this table? Other endpoints, dashboards, exports, aggregates.
 - **Async consumers** — cron, serverless functions, queues, storage events, email triggered off the same data (`PROJECT-PROFILE.md §11`). Trace the chain to its terminal writer — the owner of a regression may be a job, not FE/BE/Admin (escape class E7).
 - **Caches & snapshots** — client-side cache keys, snapshot tables (`PROJECT-PROFILE.md §11`), materialized aggregates that can drift from live data.
 - **Downstream reports/exports** — CSV columns, dashboards (online vs offline scope), printed/PDF outputs.
+- **Code review: Possibly affected** — every area the caller's code review lists (full-qa Phase 2). None is dropped; each one is a matrix row.
 
 Feed every concrete target into the Scope Lock "Indirect blast radius" row and into the matrix below, and give each one a register row ID now so none can vanish later. **A change is in scope plus everything this surfaces.** A shared component fixed is not every consumer fixed — each consumer is its own row (qa-standards -> Judgement Discipline #4).
 
-## Step 2: Pick the smallest proving check per area
+## Step 2: Pick the proving checks per area
 
-For each indirect area, run the *smallest* check that proves it still works — delegate to the specialist:
+For each indirect area, run the checks that prove it still works — delegate to the specialist. **Depth:** called from a full or release run, or for an area the code review listed, test every layer the area has and every role that reaches it; the smallest proving check is the floor, not the target:
 - A UI flow renders/clicks/submits -> `Skill(browser-test)` (capture console + network during the flow).
 - An endpoint still returns the right shape/data for the right role -> `Skill(api-test)` (prefer the typed tools in `PROJECT-PROFILE.md §14` if any; otherwise `mcp__http-client__*`).
 - A row count / aggregate / FK still reconciles -> `Skill(db-check)`.
 - An async consumer still produces its output -> trigger (or wait for) the job and verify the **terminal DB state**, never the enqueue (E8).
 
-Prefer the cheapest layer that detects breakage (a DB count beats a full UI walk when the risk is data). **The check must exercise the path (E5):** a functional "still works" names the API call / write / job run observed, never the presence of a control or a success toast. Run independent area-checks in parallel where they share no state — via sub-agents only if `PROJECT-PROFILE.md §16` allows them (then `superpowers:dispatching-parallel-agents` describes the fan-out if the plugin is installed, `§17`; otherwise one message, one self-contained brief per lane); otherwise sequentially in-session. Sub-agent reports are leads, and agreement between your own lanes is ONE source (qa-standards -> Verdict Integrity #5, #7).
+Start at the cheapest layer that detects breakage (a DB count beats a full UI walk when the risk is data). **The check must exercise the path (E5):** a functional "still works" names the API call / write / job run observed, never the presence of a control or a success toast. Run independent area-checks in parallel where they share no state — via sub-agents only if `PROJECT-PROFILE.md §16` allows them (then `superpowers:dispatching-parallel-agents` describes the fan-out if the plugin is installed, `§17`; otherwise one message, one self-contained brief per lane); otherwise sequentially in-session. Sub-agent reports are leads, and agreement between your own lanes is ONE source (qa-standards -> Verdict Integrity #5, #7).
 
 ## Step 3: Compare to baseline
 
@@ -134,10 +139,12 @@ Allowed types: DB query result, API request/response, Browser screenshot, Consol
 
 Hand over ONLY the package — Scope Lock, baseline sources, every finding (fails AND passes), the Evidence Ledger, the **Execution Register** and the proposed verdict — never your reasoning or transcript.
 - Sub-agents allowed (`PROJECT-PROFILE.md §16`): dispatch `qa-verdict-auditor` via the `Agent` tool with the path of `qa-evidence/<run-folder>/package.md` (from `verdict_check.py --package`) - a judge, not a second QA run.
-- Sub-agents disabled (§16): audit in-session — re-derive the verdict from the package alone, item by item against qa-standards -> Verdict Integrity #1-8 and the Completion Gate; write `AUDIT_PASSED` / `AUDIT_FAILED`.
+- Sub-agents disabled (§16): audit in-session — re-derive the verdict from the package alone, item by item against qa-standards -> Verdict Integrity #1-10 and the Completion Gate; write `AUDIT_PASSED` / `AUDIT_FAILED`.
+The checklist is full-qa `references/audit.md` (items 1–5; 4f = a `Regression: <area>` row per area).
 `AUDIT_FAILED` -> you may NOT state the verdict; resolve each challenge with evidence, then re-audit if findings moved. Its challenges are leads: reproduce first-hand anything you act on (qa-standards -> Verdict Integrity #7). Record that the audit ran, and how.
 
 ### Verdict — per qa-standards -> Verdict Contract (policy: `PROJECT-PROFILE.md §16`, default strict binary)
+A standalone run opens its verdict with the Run line in plain text: `Run: regression-runner | QA mode: regression | Audit: AUDIT_PASSED` (qa-standards -> Verdict Contract; completion gate checks #20–#22).
 **GO** ("no regression" may follow in parentheses: every in-scope indirect area matched baseline, 0 confirmed regression bugs, 0 NOT YET VERIFIED rows in mandatory scope) / **NO-GO** ("regression found": 1+ confirmed regression bugs, any area, any severity — each to `Skill(bug-report)` with its layer classification) / **PARTIAL** (a stop condition halted an area — name it). No "conditional pass"; an untested area is NOT YET VERIFIED, never a pass. Confidence line mandatory: `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: <one line or "none">`. When the run finds nothing, state which escape classes (qa-standards -> Escape classes & their gates) were actively checked — an unchecked class is a NOT YET VERIFIED row, not silence. Banned in verdict lines: *seems fine, probably, should work, looks correct, most likely, I assume, apparently*.
 
 ---
@@ -153,7 +160,7 @@ Read-only by default. If an area-check genuinely needs a write, the full 7-step 
 ## Plugins & escalation (optional enhancers — `PROJECT-PROFILE.md §17`)
 - A large independent fan-out across many indirect areas -> `superpowers:dispatching-parallel-agents` if the `superpowers` plugin is installed (or the `qa-team` skill) — only when `PROJECT-PROFILE.md §16` allows sub-agents; otherwise sequential in-session.
 - A confirmed regression whose root cause is non-obvious after the cross-layer pass -> `superpowers:systematic-debugging` if installed; otherwise by hand: 3-5 ranked falsifiable hypotheses, one variable at a time, accept only a reproduced cause.
-- Before declaring GO / no-regression -> `superpowers:verification-before-completion` if installed; otherwise by hand: re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-8 against your own conclusions and quote the evidence row behind every PASS.
+- Before declaring GO / no-regression -> `superpowers:verification-before-completion` if installed; otherwise by hand: re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-10 against your own conclusions and quote the evidence row behind every PASS.
 
 ---
 

@@ -20,6 +20,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 If no arguments: ask which page/component to audit (and the role to reach it), then STOP. Do not navigate until scope is set.
 
 ---
@@ -36,10 +38,10 @@ State the scope before the first navigation. Do not interact until this is fille
 | Roles in scope | `<roles: PROJECT-PROFILE.md §8>` (e.g. Admin / Manager / User / Guest) |
 | Routes (full journey, not just the changed screen) | |
 | Environment | Test (default) / Dev / Prod (read-only) — URL from `PROJECT-PROFILE.md §5` |
-| Supported browser(s) the project commits to | from `PROJECT-PROFILE.md §16` if listed; otherwise the browser the Playwright MCP launches — name it |
+| Supported browser(s) the project commits to | `<browsers / devices: PROJECT-PROFILE.md §16>`; when blank, the browser the Playwright MCP launches — name it |
 | Branch / commit under test | `<branch: PROJECT-PROFILE.md §3>` @ short sha — captured once, reused on every evidence row |
 | Run folder | `qa-evidence/<TICKET-KEY or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/` |
-| WCAG checks in scope | keyboard / focus / ARIA / contrast / forms / SR-basics |
+| WCAG checks in scope | keyboard / focus / ARIA / contrast / reflow / language / forms / SR-basics |
 | Out of scope (explicit) | |
 
 Default FE = the main app (`<main app URL: PROJECT-PROFILE.md §5>`). Use a legacy / secondary FE URL (PROJECT-PROFILE.md §5) only when the story explicitly targets it.
@@ -68,7 +70,7 @@ This skill is **validation-only by nature** — it operates and reads the page; 
 ## Tool Selection
 
 - **Keyboard & snapshots**: `mcp__playwright__*` — `browser_press_key` (Tab/Shift+Tab/Enter/Space/Esc/Arrow keys), `browser_snapshot` (exposes the accessibility tree), `browser_take_screenshot` (focus ring evidence), `browser_evaluate` (read `document.activeElement`)
-- **Contrast & computed values**: `mcp__chrome-devtools__evaluate_script` (or `mcp__playwright__browser_evaluate`) — read computed `color`/`background-color`/`font-size`/`font-weight`, or run an axe-core snippet **as a lead generator**
+- **Contrast & computed values**: `mcp__chrome-devtools__evaluate_script` (or `mcp__playwright__browser_evaluate`) — read computed `color`/`background-color`/`font-size`/`font-weight`, or run axe-core **as a lead generator**: across engines with `node .claude/skills/browser-test/scripts/xbrowser.js ... --axe` (it finds `axe-core` in the project's or a global `node_modules`, or takes `--axe-path`). When a strict Content-Security-Policy blocks `addScriptTag`, inject the library text with `page.evaluate(<axe.min.js text>)` — that works in Chromium, Firefox and WebKit. Confirm each axe violation on the element before filing
 - **Expected behavior**: `Read`, `Grep`, `Glob` — verify labels/roles against component source (`<frontend repo: PROJECT-PROFILE.md §3/§9>`; NOT Bash cat/grep)
 - **Tabs**: `browser_tabs` with `action: "list"` before every probe — some applications log the first tab out when a second tab of the same portal opens (verify per project; keep one tab per portal until you have)
 
@@ -102,6 +104,10 @@ Use `mcp__chrome-devtools__evaluate_script` to read computed foreground/backgrou
 - **4.5:1** for normal text (WCAG AA 1.4.3).
 - **3:1** for large text (>=18.66px bold or >=24px) and for UI component boundaries/focus indicators (1.4.11).
 Record the measured ratio and the two colors in the ledger. When the background is an image or gradient, measure against the darkest and lightest pixel the text sits on and report both.
+
+### Step 4b: Zoom, reflow and page language
+- **Reflow (1.4.10)** — at 320 px wide (or 400 % zoom) content reflows with no loss and no sideways scrolling; at 200 % zoom text stays readable (1.4.4).
+- **Page language (3.1.1 / 3.1.2)** — `document.documentElement.lang` names the UI language (`<UI languages: PROJECT-PROFILE.md §16>`); a passage in another language carries its own `lang`.
 
 ### Step 5: Forms
 - **Labels associated** — every field has a programmatic label (`<label for>`, `aria-label`, or `aria-labelledby`), not just placeholder text.

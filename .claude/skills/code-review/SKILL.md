@@ -20,6 +20,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "What should I review — a PR number, a branch/commit diff, or a file/feature? If it maps to a ticket in the issue tracker (PROJECT-PROFILE.md §15), give the key so I can pull acceptance criteria."
@@ -58,6 +60,7 @@ The #1 cause of missed bugs is reviewing only the changed lines. A change is the
 - **Shared DB tables/columns** — what else reads/writes a touched table? Reports, dashboards, exports, other endpoints, async writers.
 - **Async consumers** — background jobs, cron, queues, storage events, email templates (see `PROJECT-PROFILE.md §11`).
 - **Caches & snapshots** — client query-cache keys, snapshot tables (`PROJECT-PROFILE.md §11`), materialized aggregates that can drift.
+- **Shared text files** — a changed key in `<shared text files: PROJECT-PROFILE.md §9>`: every page that calls it is a dependent; a key that gains a `{{word}}` needs every caller to pass that word (`node .claude/skills/qa-standards/scripts/i18n-placeholder-diff.mjs <base> <head> --repo <frontend repo: PROJECT-PROFILE.md §3/§9> --locale <locale file>`).
 - **Other repos / async owners** — the code is in more than the FE / BE / Admin repos. A symptom seen in one screen is often produced by a background worker, serverless function or integration job (`PROJECT-PROFILE.md §11`). Trace the chain to its terminal writer before deciding which repo the review covers (qa-standards -> Escape classes, E7 "wrong repo").
 
 List the blast radius in the Scope Lock and confirm each surface still behaves. An untraced dependent is a coverage gap — name it, do not imply it passed.
@@ -180,6 +183,9 @@ Classify each issue's layer (FE / BE / Admin / Report / DB / Both) per qa-standa
 
 State coverage gaps explicitly — an unreviewed dependent is never an implied APPROVE.
 
+### Possibly affected
+End the review with one line per page, endpoint, table, job or report the changed code can reach beyond the story's own screens (callers of a changed function, importers of a changed component, pages that read a changed text key). /full-qa tests each one in Phase 7b as a `Regression: <area>` row.
+
 ---
 
 ## Plugins & escalation (optional — PROJECT-PROFILE.md §17)
@@ -195,7 +201,7 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 
 1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it is allowed). Frontmatter `name` / `description` / `metadata.type`.
 2. **Cross-reference first** — grep the folder for the PR/file path/symbol/symptom; UPDATE an existing entry instead of filing a duplicate.
-3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
+3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<YYYY-MM-DD · title>](<file>.md) — <hook>`.
 4. **Content:** PR/feature + date, verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**; the review alias may follow in parentheses), issues (`path:line`, severity, layer, NEW/DUPLICATE), files reviewed + blast-radius files, Root-Cause Check result for bug fixes, latent-pattern hits handed to `latent-pattern-sweep`, regression risks for next time, any prior memory this run disproved.
 5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

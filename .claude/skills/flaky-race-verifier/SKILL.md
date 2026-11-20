@@ -20,6 +20,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP: "Which intermittent flow should I quantify, and what is the EXACT failure signal (blank field / 500 / wrong value / spinner that never resolves)? I need the precise steps to repeat." Do not guess the flow from conversation; do not run anything until the flow and the signal are pinned.
 

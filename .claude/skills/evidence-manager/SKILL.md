@@ -22,6 +22,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and finding ids instead of writing new ones, never stop to ask, return the filed evidence rows to the caller's Evidence Ledger, and write no memory file of your own: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "Which finding is this evidence for — a ticket (`<TICKET-KEY>`, pattern in `PROJECT-PROFILE.md §15`) or a bug (`BUG-YYYYMMDD-HHMMSS`)? And what artifact(s) am I filing (API response / screenshot / log / CSV / note)? And what are the provenance values — Env, Branch / Commit, Captured at?"

@@ -103,3 +103,27 @@ must also be patched INTO the script that produced it; a replayed row is never c
   uses a `status` enum.
 - "No prod access" recorded as a gap when a read-only prod path existed the whole time.
 - A keyboard-focus bug filed from an accessibility scanner that the real Tab walk disproved.
+
+---
+
+## Escape classes — what each door looked like *(illustrative)*
+
+The gates live in SKILL.md → Escape classes & their gates; these are the shapes to recognise.
+
+| # | Escape class | What it looks like *(illustrative)* |
+|---|---|---|
+| E1 | **Dissolved anomaly** | an unexpected merge called by-design in a note; a masked error "parked" |
+| E2 | **Data release without QA** | a bulk import that made two latent bugs live the same day |
+| E3 | **Latent assumption** | `[firstRow]` · an `else` arm never run · "the parser always returns text" |
+| E4 | **Same input every time** | three runs, one text-layer PDF |
+| E5 | **Validation green ≠ feature green** | five green cases, zero API calls; the write path had data loss |
+| E6 | **Symptom fix** | a PR that changed the component but left the root-cause line untouched |
+| E7 | **Wrong repo** | the terminal writer lived in an integration repo |
+| E8 | **Silent async no-op** | an early `return` when a matching draft exists |
+| E9 | **Masked error** | a `throw` commented out years ago |
+| E10 | **Unwatched production** | error rate tripled for a month, visible in one log table |
+| E11 | **Untested ship** | a ticket at "ready to deploy" nobody tested |
+| E12 | **Guessed denominator** | the matrix was counted from intuition |
+| E13 | **Knowledge decay** | undated index entries never archived |
+| E14 | **Unseen screen** | a checkbox drawn twice, visible in two QA screenshots nobody opened |
+| E15 | **Unwritten case** | every cell of the matrix ran; most of the known bugs sat outside it |

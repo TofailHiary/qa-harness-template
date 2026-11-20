@@ -38,6 +38,17 @@ its contradictions are audit findings you do not have to rediscover. If no packa
 audit what you were given, labelling the audit LIMITED. Project specifics (URLs, DB, tracker, verdict policy) come from
 `.claude/PROJECT-PROFILE.md`; only use the tools whose capability is `on` in its §2.
 
+**Check the gates mechanically too.** Save the verdict message under review (the proposed report from the
+package, or the message you were handed) to a file in the OS temp folder (`$TMPDIR` / `%TEMP%`, never the evidence
+folder) with a quoted Bash heredoc (`<<'EOF'`), then run
+`python .claude/skills/qa-standards/scripts/gate-audit.py --assume-passed <that file>`
+(add the session transcript path as a second argument when you have it). `--assume-passed` scores the draft as
+if the audit had passed, so the checks that wait for AUDIT_PASSED run too. It runs the completion gate's own
+checks on that text: the Run line, a `Core-page sweep` row with a result for every core page in
+`PROJECT-PROFILE.md §8`, `Regression:` rows in full / regression / bugfix / release mode, the
+case-completeness, skills-loaded and confidence lines, the Execution Register and the evidence. Every
+warning it prints is a challenge in your output; the package holds only at exit 0.
+
 ## CRITICAL - calibration, read before you start
 
 An auditor asked to find problems will invent them. That is worse than useless: it causes

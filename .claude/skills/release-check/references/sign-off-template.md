@@ -7,7 +7,7 @@ Part of `release-check`. Moved out of SKILL.md to keep the always-loaded file sm
 ## Plugins & escalation (optional enhancers — `PROJECT-PROFILE.md §17`)
 - Non-obvious root cause -> `superpowers:systematic-debugging` if the `superpowers` plugin is installed; otherwise by hand: 3-5 ranked falsifiable hypotheses, one variable at a time, accept only a reproduced cause.
 - Large independent fan-out across release areas -> `superpowers:dispatching-parallel-agents` if installed (or the `qa-team` skill) — only when `PROJECT-PROFILE.md §16` allows sub-agents; otherwise sequential in-session.
-- Before declaring APPROVED -> `superpowers:verification-before-completion` if installed; otherwise by hand: re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-8 against your own conclusions and quote the evidence row behind every PASS.
+- Before declaring APPROVED -> `superpowers:verification-before-completion` if installed; otherwise by hand: re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-10 against your own conclusions and quote the evidence row behind every PASS.
 - Ambiguous AC with the owner present -> `Skill(mattpocock-skills:grilling)` if the `mattpocock-skills` plugin is installed (numbered rounds, recommended answer per question, facts looked up in-session); otherwise by hand: numbered questions with your recommended reading, each answer cited as the source of its expected result. Owner absent: record the ambiguity, take the code-derived reading, label it INFERRED.
 
 ---

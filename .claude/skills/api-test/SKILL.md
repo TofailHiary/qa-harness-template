@@ -20,6 +20,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "Which endpoint(s) or feature? Which roles (including an attacker account from another tenant)? Does any case mutate data? Test (default) or Dev?"
@@ -107,7 +109,7 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 
 1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it is allowed). Naming `project_<slug>.md` / `feedback_<slug>.md` / `reference_<slug>.md`; frontmatter `name` / `description` / `metadata.type`.
 2. **Cross-reference first** — grep the folder for the endpoint/route/symptom; UPDATE an existing entry instead of filing a duplicate.
-3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
+3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<YYYY-MM-DD · title>](<file>.md) — <hook>`.
 4. **Content:** endpoints tested + date + Env + commit, pass/fail counts, verdict in Verdict Contract words, bugs (ID, severity, layer, NEW/DUPLICATE), test data (user/entity ids — never passwords or tokens), root-cause `path:line`, any mutation made + restored, any prior memory this run disproved.
 5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

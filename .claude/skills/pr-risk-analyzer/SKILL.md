@@ -20,6 +20,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP: "Which PR / commit / branch / diff should I analyze? (e.g. 'PR #742 <frontend repo: PROJECT-PROFILE.md §3/§9>')." Do not guess.
 
@@ -40,6 +42,7 @@ For each changed unit, trace outward with `Grep`/`Glob`/`mcp__github__search_cod
 - **Shared DB tables/columns** — what else reads/writes the changed table: other endpoints, reports (<report repo: PROJECT-PROFILE.md §3>), dashboards, CSV exports, snapshot tables (`PROJECT-PROFILE.md §11`). Query `information_schema` (DB on) or grep models for the column.
 - **Async consumers** — cron, serverless functions / workers (order processing, parsing, report generation, recommendations — whatever `PROJECT-PROFILE.md §11` lists), queues, storage events, email templates.
 - **Caches & snapshots** — client query-cache keys, materialized aggregates that drift from live data.
+- **Shared text files** — a changed key in `<shared text files: PROJECT-PROFILE.md §9>`: every page that calls it is in scope, and a key that gains a `{{word}}` needs every caller to pass that word; run `node .claude/skills/qa-standards/scripts/i18n-placeholder-diff.mjs <base> <head> --repo <frontend repo: PROJECT-PROFILE.md §3/§9> --locale <locale file>` (qa-standards -> Impact Analysis).
 - **Contract changes** — a changed response shape breaks every FE consumer of that field; a changed request shape breaks the BE.
 - **Other repos / async owners** — "FE / BE / Admin" is not the whole system. If the changed data is written or read by a worker in another repo (`PROJECT-PROFILE.md §11`), that repo is in the blast radius too; trace the chain to its terminal writer (qa-standards -> Escape classes, E7).
 - **Data-shape assumptions (latent)** — if the diff adds an enum value, a content mode, a file format, or touches code that assumes "exactly one" row per partition, a populated field, or a branch the data has never taken, add a row for `Skill(latent-pattern-sweep)`: the risk is not in the diff but in the data growing past the assumption (qa-standards -> Escape classes, E3).

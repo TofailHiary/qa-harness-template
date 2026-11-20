@@ -19,6 +19,8 @@ Follows the shared standard — read `.claude/skills/qa-standards/SKILL.md` once
 ## ARGUMENTS
 $ARGUMENTS  (default to Test if unspecified)
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ---
 
 ## Checklist — run each enabled check, fill the readiness table
@@ -43,6 +45,8 @@ $ARGUMENTS  (default to Test if unspecified)
 
 6. **Release radar** — *optional; Jira / issue tracker on (`PROJECT-PROFILE.md §15`).* What is about to ship that QA has not touched? Search the tracker live (`mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql`, or the tracker API named in §15) for issues in the current release / fixVersion whose status is one of the pre-deploy states named in §15 (e.g. Ready for QA, Ready to Deploy, Dev Done). For every hit, read its comments and history: no QA comment and no QA transition = shipping untested -> a RED row with the ticket key. Print the baseline even when it is clean ("N open in the release, k in pre-deploy states, 0 untouched"). *(illustrative)* a ticket sat in the ready-to-deploy state with zero QA comments; its fix carried a data-loss regression that reached production. This is escape class **E11** (qa-standards -> Escape classes & their gates). A remembered ticket status is not evidence — read it live (qa-standards -> Fresh vs Historical).
 
+6b. **Release diff** — *before a release or post-deploy check; LocalRepos or GitHub on (`PROJECT-PROFILE.md §2`).* What ships that no ticket names? Run qa-standards -> Impact Analysis item 0 (release diff) for every repo in the release and hold the changed files against the release's tickets. A changed file that no ticket covers is a RED row: it ships untested. A change to a shared text file (`<shared text files: PROJECT-PROFILE.md §9>`) runs `node .claude/skills/qa-standards/scripts/i18n-placeholder-diff.mjs <from> <to> --repo <frontend repo: PROJECT-PROFILE.md §3/§9> --locale <locale file>`: a MISSING VALUE or SUSPECT row is RED; exit 3 (keys to check by hand) stays AMBER until each listed page was opened. *(illustrative: a text change that broke two pages rode in under a ticket for a third page.)*
+
 7. **Prod sentinel** — *optional; Prod-DB on (`PROJECT-PROFILE.md §6`).* Is production already bleeding? Run `Skill(prod-sentinel)` when it is installed — at minimum its failure-rate scan and its bulk-content-event scan. By-hand equivalent against the read-only prod DB: (a) group the project's main error / event log table (`PROJECT-PROFILE.md §10`) by month × status for the last 120 days and flag any month whose error share exceeds the trailing 3-month mean by 15 points; (b) count new rows per day in each content / template table (§10) for the last 60 days and flag any day with 10 or more — that is a content import, i.e. a data release. **A content import in the last 14 days is a stop condition for GO on anything that touches the imported content until `Skill(latent-pattern-sweep)` has run against it.** This is escape class **E10**. Print the numbers even when nothing is alarming — the next run needs them as its baseline.
 
 ## Output — Readiness table
@@ -58,6 +62,7 @@ $ARGUMENTS  (default to Test if unspecified)
 | MCP servers | (list for enabled capabilities) | GREEN/RED | which failed |
 | Change deployed? | fix string / version per surface | GREEN/RED | bundle grep, version endpoint, worker alias |
 | Release radar | current release / fixVersion | GREEN/RED/N/A | tickets in pre-deploy states with no QA touch |
+| Release diff | changed files per repo vs the release's tickets | GREEN/AMBER/RED/N/A | files no ticket covers; i18n-placeholder-diff result |
 | Prod sentinel — failure rate | main log / event table | GREEN/RED/N/A | share vs trailing baseline |
 | Prod sentinel — content events | content / template tables, 60 days | GREEN/RED/N/A | date + count; sweep required? |
 

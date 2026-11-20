@@ -22,7 +22,7 @@ and limitations, troubleshooting, upgrading, catalog, capability matrix, maintai
 migration inventory). Read README.md, CHANGELOG.md, docs/catalog.md, docs/capability-matrix.md,
 docs/maintainers/generalization-conventions.md and .claude/skills/qa-standards/SKILL.md first; they define
 the architecture, the shared vocabulary (Scope Lock, Evidence Ledger, Execution Register, Verdict Contract,
-Completion Gate, Escape classes E1–E13, Memory Ritual) and the non-negotiable constraints.
+Completion Gate, Escape classes E1–E15, Memory Ritual) and the non-negotiable constraints.
 
 NON-NEGOTIABLE CONSTRAINTS (reject any idea that violates them)
 1. Generic: no product, organisation, host, account, ticket prefix or incident may be hard-coded; every

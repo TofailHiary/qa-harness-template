@@ -15,7 +15,9 @@ Both are built-in Claude Code commands the owner types (documented in the Claude
 Write the condition from checkable objects, never from intent:
 - every row of the Execution Register carries one of PASS / FAIL / BLOCKED / NOT APPLICABLE / NOT YET VERIFIED
 - every finding (bug or PASS) has an Evidence Ledger row with an evidence id
-- the Phase 8a in-session audit (`qa-verdict-auditor`) returned AUDIT_PASSED
+- the Phase 8a audit (`qa-verdict-auditor`, or in-session when `PROJECT-PROFILE.md §16` disables sub-agents) returned AUDIT_PASSED
+- the case-completeness line is complete (full-qa `references/audit.md` item 4c)
+- every phase skill in the full-qa Phase skill map was loaded with the Skill tool or marked n/a with a reason (item 4d)
 - the confidence line is printed and adds up
 - memory is updated (file in `<memory folder: PROJECT-PROFILE.md §12>` + `MEMORY.md` line)
 - scope-specific outcomes: "all M cells of the code-derived matrix executed", "the reporter's original input re-run", "the fix touched the root-cause file:line"
@@ -41,8 +43,13 @@ Always state: the interval, what repeats, why, what each iteration validates, th
 
 Smoke and targeted single-pass runs: write "neither: single pass, ends with the verdict", so the omission is deliberate and visible.
 
+When `/loop` is declined because a wait happens inside the run, say three things so the owner can tell inline polling from an open-ended wait: what is polled (the table or endpoint), the bound (seconds or minutes), and what happens when the bound expires (a fallback environment, or the row goes BLOCKED with its unblock). If a missing component could arrive during the run (a worker, a deploy), add the conditional loop line the owner can arm once they ask for it, with its interval and stop condition. A loop is for something expected to change on a clock; a component nobody is deploying does not change by waiting *(illustrative: a queue worker that was never merged to Test would have kept a loop spinning for hours)*.
+
 ## Facts from the Claude Code documentation (re-check the current docs when a line is load-bearing)
 - `/goal <condition>` sets or replaces the one active goal (conditions up to 4,000 characters); `/goal` alone shows status; `/goal clear` (aliases stop / off / reset / none / cancel) removes it.
 - Unattended: `claude -p "/goal <condition>"` runs to completion in one invocation (`--output-format stream-json --verbose` shows progress). It does not change the permission mode.
 - Whether Claude can arm `/goal` itself is not documented: treat it as typed by the owner.
 - `/goal` starts the next turn when the previous one ends; `/loop` starts it on a time interval. They are different triggers; combining them is not documented, so the prompt recommends one primary mechanism and says why.
+
+## The decision persists
+The skill has four forms (FULL, LIGHT, Run with only, Reuse; see SKILL.md → Forms). Whatever the form, the Run with block is produced: a `/goal` line, a `/loop` line, or "neither" with the reason. `/full-qa` does not start Phase 0 without it. It never waits for the owner to arm `/goal`: the line is printed and the run continues; the owner types it whenever they want (or starts the run as `claude -p "/goal …"`). Waiting for a typed `/goal` halts a run that could have finished on its own.

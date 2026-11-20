@@ -3,7 +3,7 @@ name: release-check
 description: Use when signing off a large, risky release/batch before it ships to production and you need an exhaustive FILE-BY-FILE, TABLE-BY-TABLE, API-BY-API checklist plus a formal release sign-off report and APPROVED / NOT-APPROVED call. Triggers include "release sign-off", "validate the release", "release-check a release", "is this batch safe to ship". Reach for /full-qa for a single story/PR GO/NO-GO; use this when the scope is a whole release that must be ZERO-bug in prod.
 argument-hint: "release name or list of changes"
 disable-model-invocation: true
-allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "Agent", "Agent(qa-verdict-auditor)", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(regression-runner)", "Skill(visual-regression)", "Skill(a11y-test)", "Skill(observability-check)", "Skill(ai-output-eval)", "Skill(latent-pattern-sweep)", "Skill(prod-sentinel)", "Skill(bug-verifier)", "Skill(bug-report)", "Write"]
+allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "Agent", "Agent(qa-verdict-auditor)", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Skill(prompt-generator)", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(regression-runner)", "Skill(visual-regression)", "Skill(a11y-test)", "Skill(observability-check)", "Skill(ai-output-eval)", "Skill(latent-pattern-sweep)", "Skill(prod-sentinel)", "Skill(bug-verifier)", "Skill(bug-report)", "Write"]
 ---
 
 # Release Validation (Full Checklist)
@@ -34,7 +34,11 @@ Do NOT guess the release contents from conversation. Enumerate the actual change
 
 ---
 
-## Step 0a: Six questions + QA Mode + Scope Lock (REQUIRED — before any tool runs)
+## Step 0: Run with decision (REQUIRED — before Step 0a)
+
+`Skill(prompt-generator)` with `$ARGUMENTS` and "Run with only": one `/goal` / `/loop` / neither block with reasons; print it and keep going (the owner arms `/goal` whenever they want). The FULL form only when the owner asks for it; a pasted prompt is reused (prompt-generator → Forms).
+
+## Step 0a: Six questions + QA Mode + Scope Lock (REQUIRED — after Step 0, before any tool runs)
 
 **Six questions first** (qa-standards -> The six questions): write them out explicitly (2-6 lines) before the first tool runs —
 1. **What is requested?** (the literal ask — here, a release sign-off — and the mode it implies)
@@ -66,7 +70,7 @@ QA mode for this skill is **release** (qa-standards -> QA Modes): `full` per are
 
 ## Step 0b: Impact Analysis (REQUIRED — this is the whole point of a release check)
 
-For the WHOLE change set, trace the blast radius per qa-standards -> Impact Analysis before testing: shared FE components (grep imports), shared API endpoints (other features / roles / params), shared DB tables/columns (reports, dashboards, exports, other endpoints), async consumers (cron / serverless functions / queues / storage events / email — `PROJECT-PROFILE.md §11`), caches & snapshots (client-side cache keys, snapshot tables (`PROJECT-PROFILE.md §11`)), downstream reports/exports (CSV columns, dashboards, printed/PDF outputs). Feed results into the Scope Lock "Indirect blast radius" row. **A release is in scope plus everything this surfaces — validate the full flows and the whole blast radius, not just the diffs.**
+For the WHOLE change set — the release diff (qa-standards -> Impact Analysis item 0), not only the ticket PRs — trace the blast radius per qa-standards -> Impact Analysis before testing: shared FE components (grep imports), **shared text files** (each changed key in `<shared text files: PROJECT-PROFILE.md §9>` and every page that reads it), item **1b** (declared scope vs the real diff), shared API endpoints (other features / roles / params), shared DB tables/columns (reports, dashboards, exports, other endpoints), async consumers (cron / serverless functions / queues / storage events / email — `PROJECT-PROFILE.md §11`), caches & snapshots (client-side cache keys, snapshot tables (`PROJECT-PROFILE.md §11`)), downstream reports/exports (CSV columns, dashboards, printed/PDF outputs). Feed results into the Scope Lock "Indirect blast radius" row. **A release is in scope plus everything this surfaces — validate the full flows and the whole blast radius, not just the diffs.**
 
 If Jira is on, pull acceptance criteria for each ticket in the release via `mcp__claude_ai_Atlassian__*` (tracker: `PROJECT-PROFILE.md §15`) — read each whole thread; a clarifying dev/PO comment often overrides a stale AC. Re-read every ticket LIVE this run: a remembered status is not evidence (qa-standards -> Fresh vs Historical).
 
@@ -99,16 +103,15 @@ Identifiers only — passwords live in the env vars named in `PROJECT-PROFILE.md
 
 ## Critical Requirements
 
-1. Extended thinking enabled — deep analysis for every check.
-2. FILE BY FILE — read and verify each changed file.
-3. TABLE BY TABLE — check every relevant database table.
-4. API BY API — test every affected endpoint via the §14 typed tools, `mcp__http-client__*` or `mcp__postman-api-mcp__*`.
-5. No assumptions — verify with actual data and behavior. Code is truth.
-6. **Validate the full flow + blast radius (Step 0b), not just the diffs** — the #1 cause of missed bugs.
-7. Every finding — bug OR pass — needs an Evidence Ledger row with provenance. **No evidence = no finding.**
-8. Zero tolerance — any confirmed bug (any layer, any severity) blocks the release until reported (default policy; see `PROJECT-PROFILE.md §16`).
-9. Memory load is ON-DEMAND; memory write at end is MANDATORY (Post-Session).
-10. The sign-off is never self-graded — an independent audit runs BEFORE the report is written.
+1. FILE BY FILE — read and verify each changed file.
+2. TABLE BY TABLE — check every relevant database table.
+3. API BY API — test every affected endpoint via the §14 typed tools, `mcp__http-client__*` or `mcp__postman-api-mcp__*`.
+4. No assumptions — verify with actual data and behavior. Code is truth.
+5. **Validate the full flow + blast radius (Step 0b), not just the diffs** — the #1 cause of missed bugs.
+6. Every finding — bug OR pass — needs an Evidence Ledger row with provenance. **No evidence = no finding.**
+7. Zero tolerance — any confirmed bug (any layer, any severity) blocks the release until reported (default policy; see `PROJECT-PROFILE.md §16`).
+8. Memory load is ON-DEMAND; memory write at end is MANDATORY (Post-Session).
+9. The sign-off is never self-graded — an independent audit runs BEFORE the report is written.
 
 ## Mutation Safety Gate (before ANY write — DB or API)
 
@@ -159,6 +162,8 @@ For EACH affected page/flow verify via `mcp__playwright__*` the **full** journey
 
 For EACH affected UI area also run: **`Skill(visual-regression)`** (layout / overflow / truncation / responsive across Desktop 1440 / Tablet 768 / Mobile 375) **+ `Skill(a11y-test)`** (keyboard / ARIA / focus / WCAG AA contrast) **+ always `Skill(observability-check)`** (console errors / failed-slow network / backend 5xx the UI hides).
 
+**Every release check runs qa-standards -> Core-page sweep** before the deploy and again after it, whatever the tickets name: one `Core-page sweep: <route>` row per page of `<core pages: PROJECT-PROFILE.md §8>` (gate check #20).
+
 ---
 
 ## Testing Types (ALL REQUIRED)
@@ -169,16 +174,7 @@ For EACH affected UI area also run: **`Skill(visual-regression)`** (layout / ove
 
 For each entity, the same value must agree across FE, BE, DB, Browser, API. Compare in a table: `| Field | DB | API | Browser | Match? |`. Verify data value/format, validation, error handling, business logic, soft-delete filtering, aggregation, and security. **No DB/API/Browser comparison = no cross-layer claim.** Mismatch -> classify (FE / BE / Admin / Report / DB / Both) and verify with `Skill(bug-verifier)` before it counts; confirmed -> `Skill(bug-report)`.
 
-*(illustrative — replace with `<key tables: PROJECT-PROFILE.md §10>` and this project's endpoints)*
-
-| Entity | DB table(s) | API endpoint(s) |
-|---|---|---|
-| User/Manager | `user`, `user_account` | `GET /api/v2/accounts/{users,managers}` |
-| Account | `account`, `user_account` | `GET /api/v2/accounts` |
-| Order | `order`, `order_item` | `GET /api/orders/:id` |
-| Order Processing | `order_item`, `order_log` | `GET /api/orders/:id/items` |
-| Subscription | `subscription`, `audit_log` | `GET /api/subscriptions/:id` |
-| Dashboard | snapshot tables (`PROJECT-PROFILE.md §11`) | `GET /api/dashboard/*` |
+The entity → table → endpoint map: `<key tables: PROJECT-PROFILE.md §10>` and `.claude/references/system-map.md` (an illustrative table is in [`references/testing-types.md`](references/testing-types.md)).
 
 ---
 
@@ -204,9 +200,10 @@ A release sign-off is the highest-stakes verdict this harness produces. **It MUS
 Before writing the report, hand over ONLY the package: the Scope Lock, the acceptance criteria / authoritative sources, every finding (bugs AND passes), the Evidence Ledger, the Execution Register, and the proposed GO/NO-GO. **Never hand over your reasoning or transcript** — that is what makes the audit independent.
 
 - **Sub-agents allowed (`PROJECT-PROFILE.md §16`):** dispatch the `qa-verdict-auditor` sub-agent via the `Agent` tool with the path of `qa-evidence/<run-folder>/package.md` (from `verdict_check.py --package`). It runs in a FRESH context as a judge, not a second QA run (its cost discipline is in its definition).
-- **Sub-agents disabled (§16):** audit in-session — re-derive the verdict from the package alone, item by item against qa-standards -> Verdict Integrity #1-8 and the Completion Gate, and write `AUDIT_PASSED` / `AUDIT_FAILED` with the challenges.
+- **Sub-agents disabled (§16):** audit in-session — re-derive the verdict from the package alone, item by item against qa-standards -> Verdict Integrity #1-10 and the Completion Gate, and write `AUDIT_PASSED` / `AUDIT_FAILED` with the challenges.
+- Either way the checklist is full-qa `references/audit.md` (items 1–5 and 4b–4f).
 - **`AUDIT_FAILED`** -> the sign-off is BLOCKED. Resolve every challenge with evidence, then re-audit.
-- **`AUDIT_PASSED`** -> proceed, and record in the sign-off that an independent audit ran, with its date and mode (sub-agent / in-session).
+- **`AUDIT_PASSED`** -> proceed: open the sign-off with the Run line in plain text, `Run: release-check | QA mode: release | Audit: AUDIT_PASSED` (qa-standards -> Verdict Contract; completion gate check #22), and record the audit date and mode (sub-agent / in-session).
 
 Reproduce first-hand anything you act on — an auditor challenge is a lead, not a finding (qa-standards -> Verdict Integrity #7). If the harness's completion-gate hook is switched to enforce (`harness-config.json` -> `gate.enforce`), the Completion Gate is enforced mechanically at stop time rather than from memory; otherwise run the checklist by hand before every verdict.
 

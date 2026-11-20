@@ -27,6 +27,8 @@ Test-Case Quality Bar, Evidence Ledger, Authoritative Source Hierarchy, Executio
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered - never generate cases for a guessed feature. If input is insufficient, ask for: **what** it does, **who** it affects (roles), **where** it lives
 (pages/routes/APIs). If the source is a ticket in the issue tracker (`PROJECT-PROFILE.md` §15), pull the
@@ -86,6 +88,58 @@ next-step. Add any further dimension the code branches on (role, tenant setting)
 - Dimensions come from `switch`/`if` on enum columns, route parameters, request-body discriminators and
   feature flags — Grep the handler and the FE caller, do not infer them from the UI.
 
+## Step 1c: Try to break it — break-it cells (part of the Step 1b matrix)
+Step 1b counts the combinations the code supports; most escaped bugs sit outside them *(illustrative: a run
+that executed every code-derived cell found a quarter of the in-scope bugs; the rest fell into the classes
+below)*. Add one cell per item that applies and count the cells in `M`:
+- **Every rule sentence** in the story, its AC and its description ("must", "never", "only", "every",
+  "exactly one", "nothing is stored", "changes every time", "is refreshed when …"): one case that tries to
+  make the sentence false.
+- **Every input** (form field, query or route parameter, CLI option, uploaded file): empty, spaces only, a
+  Unicode blank (NBSP U+00A0, ideographic space U+3000), the value `0`, negative, decimal, digits mixed with
+  letters, too long, a duplicate or soft-deleted value.
+- **Every outside call** (AI model, speech / media service, object storage, email, third-party API —
+  `PROJECT-PROFILE.md §11`): an error status, a timeout, HTTP 200 with the wrong body (HTML where JSON or a
+  file was expected), a partial or empty reply.
+- **Every write:** a failure after a side effect (file uploaded, then the DB save fails), two writers at once
+  (double click, two tabs, two overlapping jobs), the state after a rollback, a warm cache.
+
+A class that does not apply gets one line saying why (no input, no outside call). A class left silent is a
+named gap, not a pass.
+
+## Step 1d: Make sure no case is missing — four inventories (escape class E15)
+Running every written case finds nothing in a case that was never written *(illustrative: every one of
+several hundred matrix cells ran, and most of the bugs found later sat outside them)*. Build these four
+inventories from the code and the story, add a case for every empty cell, and count every cell in `M`:
+1. **Role × action grid.** Rows: every role in the Scope Lock (<roles: PROJECT-PROFILE.md §8>), plus one
+   role that must be refused, the same role in another tenant (organization / account) and a signed-out
+   user. Columns: every action and every screen the story touches (routes, controller actions, buttons, API
+   calls — read from the code). Allowed → it works and the result is visible to every role that should see
+   it; refused → 401 / 403, a hidden or disabled control, or a redirect — never a crash, a blank page or a
+   silent success.
+2. **Branch inventory.** Every decision in the changed code and the functions around it: `if` / `else`,
+   `switch` / `case` / `match`, ternaries, `??` / `||` fallbacks, `try` / `catch`, early `return` /
+   `continue`, role and permission checks, feature flags, enum values, validation rules. One row per
+   decision: `file:line | condition | case IDs for the true side | case IDs for the false side`; a side with
+   no case is a missing case. Find them with `git -C <repo> diff <base>..<head> -U0 -- <files>`, then
+   `grep -nE "\b(if|elseif|else|switch|case|match|catch|return)\b|\?\?|\|\|" <file>` over the touched functions.
+3. **UI inventory** (a screen is in scope): every control and message on every screen of the journey, from
+   the component source and a live snapshot (`browser-test` Step 1); each control gets a case for every
+   state it can be in.
+4. **Story-is-silent list.** Every behaviour the code has that the story, its AC and its comments do not
+   define (for example, what a user sees when an optional asset does not exist for their language or plan).
+   Each becomes a case with `Expected: UNKNOWN — the story is silent` and a row in the Open Questions table.
+   The code's behaviour is never copied in as the expected result; a code comment counts only after you
+   checked that the ticket and AC are silent and say so (`.claude/rules/anomaly-disposition.md` Rule 1).
+
+End the Step 4 summary with this line, counted from the inventories (first number = cells with a case,
+second = cells in the inventory; a part that does not apply says `n/a (<why>)`):
+`Case completeness: AC sentences a/A · roles×actions b/B · branches c/C · Step 1c classes d/D · UI controls e/E · silent-story questions q`
+A number below its total is a missing case: write it before testing starts (the full-qa Phase 8a audit
+recounts it; completion gate check 18). Cases run in the UI languages in scope
+(<UI languages: PROJECT-PROFILE.md §16>; default: the app's default language only); another language is
+tested only for output the story itself produces.
+
 ## Step 2: Investigate Code, DB, API
 - **FE:** components in `<frontend repo: PROJECT-PROFILE.md §3/§9>` (and `<legacy frontend repo:
   PROJECT-PROFILE.md §3>` when the project keeps one); API calls in `<frontend API layer: PROJECT-PROFILE.md §9>`.
@@ -103,8 +157,10 @@ next-step. Add any further dimension the code branches on (role, tenant setting)
 ## Step 3: Generate Test Cases (ALL IN TABLES)
 
 Cover every applicable category; skip ones that don't apply. **10 categories:** Positive · Negative (incl.
-SQLi/XSS) · Boundary · DB Integrity · API (200/400/401/403/404, schema, pagination) · UI/Browser (load,
-forms, console, network, loading/empty states) · Security (RBAC, cross-tenant isolation, token expiry) ·
+SQLi/XSS) · Boundary · DB Integrity · API (200/400/401/403/404, schema, pagination) · UI/Browser (every
+control on every screen, each screen state, user habits: refresh / back / double click / two tabs / deep
+link / session end, the second browser engine, media, uploads and downloads; console + network) · Security
+(RBAC, cross-tenant isolation, token expiry) ·
 Regression (the Step 1 blast radius still works) · E2E (full journeys across roles) · Data Consistency
 (DB=API=Browser).
 
@@ -150,7 +206,8 @@ The Scope Lock copies M from here.
 
 **Coverage matrix** (qa-standards) — confirm every dimension that applies is covered; a blank cell is a gap
 to name, not hide: `| Dimension | Covered? | TC IDs |` for Roles, States, Inputs(+/-), **Input class**,
-Flow, **Write path**, Cross-tenant, Regression.
+Flow, **Write path**, Cross-tenant, Regression, **Role × action**, **Branches**, **UI controls**,
+**Story-is-silent** (Step 1d). End the summary with the case-completeness line from Step 1d.
 
 **Risk areas (risk-scored)** — `| Risk | Likelihood (H/M/L) | Impact (H/M/L) | Mitigating TC IDs |`.
 Highest Likelihood×Impact first.
@@ -168,9 +225,11 @@ the Execution Register (qa-standards) and counts against the confidence line —
 dropped, and a verdict cannot call the plan "covered" while a case is open. Only the profile's QA policy
 section can change this default; if it does, say which cases it exempts and why.
 
-If the user proceeds, convert the cases to TodoWrite tasks grouped by priority (P1 first), each tagged with
-its **Execute With** skill so the right specialist runs it. The generated table IS the Execution Register
-skeleton — executors fill in Actual / result / evidence per row.
+List the cases as Execution Register rows grouped by priority (P1 first), each tagged with its **Execute
+With** skill so the right specialist runs it. The generated table IS the Execution Register skeleton —
+executors fill in Actual / result / evidence per row. Inside `/full-qa`, `/qa-validate` or `/release-check`
+there is no pause: the caller executes every row at once (a QA skill never asks whether to run its own
+steps). Standalone, when the user asked only for cases, stop after the list.
 
 ---
 

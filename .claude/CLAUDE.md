@@ -24,7 +24,8 @@ to whatever capabilities this project has enabled (`PROJECT-PROFILE.md` §2).
 ## Memory (Auto Memory)
 Auto-memory is enabled. Save learnings / bugs / test-data to this project's memory folder
 (`PROJECT-PROFILE.md` §12; the hooks derive it when blank). Memory updates are mandatory at the end of
-every skill and agent run — if memory cannot be persisted, halt and tell the user. Before creating a
+every skill and agent run (a skill loaded inside a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`) leaves it to the
+caller, which writes one file for the run) — if memory cannot be persisted, halt and tell the user. Before creating a
 memory file, grep the folder for the affected endpoint / file / symptom and update the existing entry
 instead of filing a duplicate; mark a disproved older fact SUPERSEDED. Index lines in `MEMORY.md` carry
 the date in the link title so the rotation hook can archive them.
@@ -93,7 +94,11 @@ checks the machine and drives every guard with a forbidden and an allowed action
 - **Stop / SubagentStop** → `completion-gate.py`: advisory by default; blocks a verdict turn that lacks
   evidence / register / confidence line / unblock reason / cited source when `QA_GATE_ENFORCE=1`
   (`settings.json → env`) or `harness-config.json → gate.enforce` is set. Tag explanatory examples with
-  the word `example` so they are not read as verdicts.
+  the word `example` so they are not read as verdicts. Checks #15–#22 hold a run report to the run skills' contract:
+  a NOT YET VERIFIED row with an operational reason, asking whether to run the skill's own steps, "expected" resting
+  only on a code comment, a missing or short `Case completeness:` line, a `Skills loaded:` ✓ the session transcript
+  does not show, a core-page route (§8) with no `Core-page sweep` row, a full / regression / bugfix / release report
+  with no `Regression:` row that ran, and a run report without the Run line (qa-standards → Verdict Contract).
 Hook changes are qualified with `python scripts/hook-redteam/runner.py` (from the template repo).
 
 ## Evidence

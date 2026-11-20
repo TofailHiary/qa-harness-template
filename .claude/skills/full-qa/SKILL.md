@@ -2,7 +2,7 @@
 name: full-qa
 description: Use when a feature, user story, PR, bug fix or release needs complete multi-layer QA validation ending in a GO/NO-GO verdict, delegating to the specialist QA skills. Triggers include "full QA", "validate this story/PR", "run the QA cycle", "sign off this story". For a whole release use /release-check.
 argument-hint: "user story, feature, PR, or release to fully validate (plus the QA mode if known)"
-allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Agent", "Skill(prompt-generator)", "Skill(qa-standards)", "Skill(env-health)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(test-cases-generator)", "Skill(code-review)", "Skill(db-check)", "Skill(api-test)", "Skill(ai-output-eval)", "Skill(latent-pattern-sweep)", "Skill(browser-test)", "Skill(visual-regression)", "Skill(a11y-test)", "Skill(observability-check)", "Skill(security-review)", "Skill(perf-test)", "Skill(regression-runner)", "Skill(bug-verifier)", "Skill(bug-report)", "Skill(qa-report)", "Skill(evidence-manager)", "Write"]
+allowed-tools: ["Bash", "Read", "Grep", "Glob", "mcp__mcp_server_mysql__mysql_query", "mcp__mcp_server_mysql_prod__mysql_query", "mcp__playwright__*", "mcp__chrome-devtools__*", "mcp__postman-api-mcp__*", "mcp__http-client__*", "mcp__filesystem__*", "mcp__github__*", "mcp__claude_ai_Atlassian__*", "Agent", "Skill(sync-repos)", "Skill(prompt-generator)", "Skill(qa-standards)", "Skill(env-health)", "Skill(login)", "Skill(pr-risk-analyzer)", "Skill(test-data-manager)", "Skill(test-cases-generator)", "Skill(code-review)", "Skill(db-check)", "Skill(api-test)", "Skill(ai-output-eval)", "Skill(latent-pattern-sweep)", "Skill(browser-test)", "Skill(visual-regression)", "Skill(a11y-test)", "Skill(observability-check)", "Skill(security-review)", "Skill(perf-test)", "Skill(regression-runner)", "Skill(bug-verifier)", "Skill(flaky-race-verifier)", "Skill(bug-report)", "Skill(qa-report)", "Skill(evidence-manager)", "Skill(mattpocock-skills:grilling)", "Write"]
 ---
 
 # Full QA Cycle — Master Orchestrator
@@ -31,29 +31,20 @@ Do NOT guess scope from conversation. Do NOT enumerate the whole platform. Do NO
 ---
 
 ## Rules
-1. Use extended thinking for every phase in scope.
-2. No assumptions — verify with actual data and behavior. Code is truth.
-3. **Validate the full user flow and the blast radius, not just the diff** (Step 0b Impact Analysis). This is the #1 cause of missed bugs.
-4. **Step 0 first, then Phase 0.** The run starts from the prompt that `prompt-generator` produced (Step 0); test cases are generated BEFORE testing (Phase 0).
-5. Every finding — bug OR pass — needs an Evidence Ledger row. No evidence = no finding.
-6. Delegate to specialist sub-skills (Phases 0b-8); the orchestrator coordinates and triangulates, it does NOT duplicate their work. Conditional sub-skills (ai-output-eval, latent-pattern-sweep, visual-regression, a11y-test) fire only when the scope calls for them.
-7. Each phase completes before the next, EXCEPT a hard blocker (feature undeployed, schema missing, wrong branch, auth fails) -> exit early with a PARTIAL verdict naming the blocker.
-8. **Every generated case is executed** unless `PROJECT-PROFILE.md §16` says otherwise. No sampling by priority, no "P1 first and stop", no "time did not allow". Priority only orders the work. Every case ends as a register row with a canonical Result and an evidence id.
-9. Track progress with TodoWrite throughout.
+1. No assumptions — verify with actual data and behavior. Code is truth.
+2. **Validate the full user flow and the blast radius, not just the diff** (Step 0b Impact Analysis). This is the #1 cause of missed bugs.
+3. **Step 0 first (any form), then Phase 0.** The run starts from what `prompt-generator` produced (Step 0); the `/goal` / `/loop` decision exists before Phase 0; test cases are generated BEFORE testing (Phase 0).
+4. Every finding — bug OR pass — needs an Evidence Ledger row. No evidence = no finding.
+5. **Load every phase skill with the Skill tool.** "Delegate to `Skill(<name>)`" means: call the Skill tool for that skill, then run the phase by that skill's own checklist; a phase done from this file's one-line summary has not run. The Phase skill map below says which skills load and when one does not apply. Pass each skill this run's scope; the orchestrator coordinates and triangulates, it never redoes a skill's work from memory.
+6. Each phase completes before the next, EXCEPT a hard blocker (feature undeployed, schema missing, wrong branch, auth fails) -> exit early with a PARTIAL verdict naming the blocker.
+7. **Every generated case is executed** unless `PROJECT-PROFILE.md §16` says otherwise. No sampling by priority, no "P1 first and stop", no "time did not allow". Priority only orders the work. Every case ends as a register row with a canonical Result and an evidence id; progress is tracked row by row in the Execution Register.
+8. **Run end to end, without asking.** Never ask whether to run one of this skill's own steps (Step 1b, a phase, a phase skill) or the cases still open: run them. Ask the user only for decisions that are theirs (filing tickets, a permission the harness refuses, a product ruling). A case ends NOT YET VERIFIED only after it was tried live -> on a local harness or container copy -> through the real code path with test doubles -> by code read, and the row names the structural blocker and what would unblock it (completion gate checks #15–#16).
 
 ---
 
-## Step 0: Prompt Generator (REQUIRED — the very first step, before the six questions)
+## Step 0: Sync + Prompt Generator (REQUIRED — the very first step, before the six questions)
 
-`Skill(prompt-generator)` with `$ARGUMENTS`. It researches the request against this setup (live ticket from the tracker in `PROJECT-PROFILE.md §15`, memory, prior evidence, code on the target branch, DB shape, fixtures, armed risks from `.claude/references/system-map.md`, hooks) and returns ONE execution-ready prompt. That prompt is the charter of this run; nothing below starts until it exists.
-
-How the rest of the cycle consumes it:
-- **Step 0a** takes the Scope Lock from the prompt's Scope section and writes out the six questions from its "Six questions" block (fill gaps; never narrow silently).
-- **Step 0b** starts from the prompt's impact map; `pr-risk-analyzer` still runs for a PR and may only widen it.
-- **Phase 0** expands the prompt's requirement register and combination matrix into cases; `test-cases-generator` keeps the prompt's IDs and derives `M` from the code (its Step 1b), never from the prompt's row count.
-- **Phase 1** turns every Research Register row marked UNKNOWN / RETRIEVE into a check (deploy state, missing fixture, open question); a row that cannot be closed becomes a named coverage gap or a stop condition, never silence.
-- **Run with block:** if it recommends `/goal`, give the user the exact line to type before Phase 0 (interactive) or run `claude -p "/goal …"` unattended; if it recommends `/loop`, run the loop exactly as written (what repeats, what each iteration validates, the stop condition); "neither" with a reason is a valid answer. One goal per session; a loop and a goal are not combined.
-- The prompt copy lives at `qa-evidence/<run-folder>/00-prompt-<subject>.md`; later attachments sit beside it.
+`Skill(sync-repos)` first (read-only pull), then `Skill(prompt-generator)` with `$ARGUMENTS`: it researches the request (live ticket per `PROJECT-PROFILE.md §15`, memory, prior evidence, code on the target branch, DB shape, fixtures, armed risks, hooks) and returns this run's charter; nothing below starts until it exists. Its form — FULL / LIGHT / Run with only / Reuse — follows the mode (prompt-generator → Forms). **Read [`references/step-0.md`](references/step-0.md) now:** which form, and how each step consumes the prompt. **`/goal` never stops the run:** print the recommended line and continue into Step 0a in the same turn. The prompt copy lives at `qa-evidence/<run-folder>/00-prompt-<subject>.md`.
 
 If the generator cannot fill its Research Register (tracker unreachable, repo missing), it says so and Step 0a proceeds with those rows as stop conditions. The generator never runs a test and never changes a ticket.
 
@@ -61,7 +52,7 @@ If the generator cannot fill its Research Register (tracker unreachable, repo mi
 
 **Six questions first** (qa-standards → *Before the first tool call*): write them out explicitly — what is requested / what is authoritative / what can be verified / which assumptions are eliminated / what evidence is required / what completion means — before running any tool.
 
-Pick the **QA mode** (qa-standards -> QA Modes). If the user didn't state one, infer the smallest mode that covers the request and say which. Then output the **Scope Lock** table and do not run a single query/call/click until it is filled (ask if a critical field is unknown):
+Pick the **QA mode** (qa-standards -> QA Modes): take it from the prompt's Execution shape and change it only with a stated reason; with no Execution shape (Run with only), if the user didn't state one, infer the smallest mode that covers the request and say which. Then output the **Scope Lock** table and do not run a single query/call/click until it is filled (ask if a critical field is unknown):
 
 | Field | Value |
 |---|---|
@@ -81,45 +72,42 @@ Pick the **QA mode** (qa-standards -> QA Modes). If the user didn't state one, i
 
 The Scope Lock's `M` (the denominator of the confidence line) comes from `test-cases-generator` Step 1b (code-derived matrix), never from intuition.
 
-## Step 0b: Impact Analysis (REQUIRED for regression / bugfix / release; recommended always)
+## Step 0b: Impact Analysis (REQUIRED for full / regression / bugfix / release; recommended always)
 
-Before generating cases, trace the blast radius per qa-standards -> Impact Analysis: shared FE components (grep imports), shared API endpoints, shared DB tables/columns, async consumers (cron / workers / queues / storage events / email — `PROJECT-PROFILE.md §11`, traced to the terminal writer), caches & report snapshots, downstream reports/exports. Feed the results into the Scope Lock "Indirect blast radius" row and into Phase 0 cases. **A change is in scope plus everything this surfaces.**
+Before generating cases, trace the blast radius per qa-standards -> Impact Analysis: shared FE components (grep imports), **shared text files** (each changed key in `<shared text files: PROJECT-PROFILE.md §9>` and every page that reads it), item **1b** (declared scope vs the real diff), shared API endpoints, shared DB tables/columns, async consumers (cron / workers / queues / storage events / email — `PROJECT-PROFILE.md §11`, traced to the terminal writer), caches & report snapshots, downstream reports/exports. Feed the results into the Scope Lock "Indirect blast radius" row and into Phase 0 cases. **A change is in scope plus everything this surfaces.**
 
-If the source is a tracker ticket (Jira on), pull acceptance criteria via `mcp__claude_ai_Atlassian__*`; otherwise take them from the user or the linked document.
+If the source is a tracker ticket (Jira on), take the acceptance criteria from the prompt's R2 when Step 0 read it live this run; otherwise pull them via `mcp__claude_ai_Atlassian__*`, or take them from the user or the linked document.
 
 **If the scope is a PR / commit / branch -> `Skill(pr-risk-analyzer)`** for the formal blast-radius risk map; feed its impact map into the Scope Lock "Indirect blast radius" row and into Phase 0 cases.
 
 ---
 
 ## Run record & resume (`run.json`)
-Keep `qa-evidence/<run-folder>/run.json` (`qa-standards/references/run-record.md`): create it at Scope Lock
-(one register row per in-scope area, NOT YET VERIFIED until run, plus the Step 1b matrix), update it after
-every phase (that update is the checkpoint), and if it already exists with `checkpoint.next_step` set,
-RESUME from that step and say so. Before the verdict,
-`python .claude/skills/qa-standards/scripts/verdict_check.py qa-evidence/<run-folder>` must exit 0 - it
-recomputes the confidence line and the run verdict; never type them by hand. `--package` then writes the
-`package.md` the independent audit reads.
+Keep `qa-evidence/<run-folder>/run.json` per `qa-standards/references/run-record.md`: create it at Scope Lock (one register row per in-scope area, NOT YET VERIFIED until run, plus the Step 1b matrix), update it after every phase (the checkpoint), and RESUME from `checkpoint.next_step` when it exists, saying so. Before the verdict `python .claude/skills/qa-standards/scripts/verdict_check.py qa-evidence/<run-folder>` must exit 0 (it recomputes the confidence line and the run verdict; never type them by hand); `--package` writes the `package.md` the audit reads.
 
-## Reusable Reference: Cross-Layer Data Consistency
+## Phase skill map — load each with the Skill tool, or write why it does not apply
 
-For each entity tested, verify the value agrees across DB -> API -> Browser (full table in qa-standards). On mismatch -> bug. Take the entity → table → endpoint map from `PROJECT-PROFILE.md §10` and `.claude/references/system-map.md`; illustrative shape:
+A phase whose capability is `off` is n/a with that reason (capability gate above).
 
-| Entity | DB table(s) | API endpoint(s) |
-|--------|------------|------------------|
-| User / Manager | `user`, `user_account` | `GET /api/<resource>/users` |
-| Account | `account`, `user_account` | `GET /api/accounts/:id` |
-| Order | `order`, `order_item` | `GET /api/orders/:id` |
-| Computed output / score | snapshot tables (`PROJECT-PROFILE.md §11`) | `GET /api/<resource>/scores` |
+| Phase | Skills to load | n/a only when |
+|---|---|---|
+| Step 0 / 0b | `sync-repos`, `prompt-generator`; `pr-risk-analyzer` | pr-risk-analyzer: the scope is not a PR, commit or branch |
+| 0 | `test-cases-generator`; `mattpocock-skills:grilling` (§17) for an unclear AC | grilling: every AC is clear (no plugin: the rounds by hand) |
+| 1 | `env-health`, `login`, `test-data-manager`; `latent-pattern-sweep` after a content import in the last 14 days | latent-pattern-sweep: no import |
+| 2 · 6 · 7 · 8b | `code-review` · `security-review` · `perf-test` · `qa-report` | never |
+| 3 | `db-check` | no table is in scope |
+| 4 | `api-test`; `ai-output-eval` for computed numbers | no endpoint is in scope |
+| 5 | `browser-test`, `observability-check`; `visual-regression` + `a11y-test` when a screen's output changes | no screen is in scope, or the owner scoped the run to the backend |
+| 7b | `regression-runner` | smoke or targeted mode |
+| 8 | `bug-verifier` per suspected bug, `bug-report` per confirmed bug, `evidence-manager`; `flaky-race-verifier` for an intermittent bug | no suspected bug |
 
-Compare in a table: `| Field | DB | API | Browser | Match? |`.
-
----
+**Inside this run every loaded skill** uses this run's Scope Lock and case IDs (no new Scope Lock, no "ask then stop"), returns its findings and evidence rows to this run's Execution Register and Evidence Ledger, and skips its own memory write: this run writes one memory file at the end. Load each skill once per run, and again only after a compaction dropped its text.
 
 ## Phase 0: Test Case Generation
-0. **Cross-check memory** — Grep `<memory folder: PROJECT-PROFILE.md §12>/*.md` for the feature/story, ticket/BUG- IDs, file paths, entity IDs. Load matches as known regression-risk areas (leads, not evidence — qa-standards → Fresh vs Historical). Skip re-verifying bugs already CONFIRMED+CLOSED unless asked.
-0b. **Ambiguous or missing AC** -> clarify BEFORE any case is written, per `test-cases-generator` Step 1.4: numbered rounds with a recommended answer each, facts looked up in-session; each answer becomes the cited source for an expected result. If the `mattpocock-skills` plugin is installed (`PROJECT-PROFILE.md §17`) use `Skill(mattpocock-skills:grilling)`; otherwise ask the rounds yourself. Owner absent: open question + code-derived reading labelled INFERRED.
-1. Delegate to `Skill(test-cases-generator)` for the scope + the Step 0b blast radius. Cases must cover positive, negative, boundary, DB integrity, API, UI, security, regression, E2E, data-consistency — and every cell of the coverage matrix (roles, states, inputs, input classes, flow, path exercised, cross-tenant).
-2. Present the summary table (count/priority per category) and create TodoWrite tasks (P1 first).
+0. **Cross-check memory** — start from the prompt's R3 (memory) and R4 (prior evidence) rows; Grep `<memory folder: PROJECT-PROFILE.md §12>/*.md` only for what they did not cover: the feature/story, ticket/BUG- IDs, file paths, entity IDs. Load matches as known regression-risk areas (leads, not evidence — qa-standards → Fresh vs Historical). Skip re-verifying bugs already CONFIRMED+CLOSED unless asked.
+0b. **Ambiguous or missing AC** not already settled in the prompt's R10 -> clarify BEFORE any case is written (`test-cases-generator` Step 1.4: numbered rounds, a recommended answer each, facts looked up in-session; each answer becomes the cited source of an expected result) — `Skill(mattpocock-skills:grilling)` if installed (§17), otherwise by hand. Owner absent: open question + code-derived reading labelled INFERRED.
+1. Delegate to `Skill(test-cases-generator)` for the scope + the Step 0b blast radius. Cases must cover positive, negative, boundary, DB integrity, API, UI, security, regression, E2E, data-consistency — and every cell of the coverage matrix (roles, states, inputs, input classes, flow, path exercised, cross-tenant). Steps 1b, 1c and 1d all run: the code-derived matrix, the break-it cells and the four inventories (role × action grid, branch inventory, UI inventory, story-is-silent list). Phase 1 does not start while the case-completeness line shows a number below its total (E15).
+2. Present the summary table (count/priority per category) and list every case as an Execution Register row (P1 first).
 
 ## Phase 1: Pre-flight & Test Data
 0. If `PROJECT-PROFILE.md §14` lists a project MCP server with session/status tools, call them first: the role profiles bootstrapped on Test = auth GREEN; a failure here is a stop condition.
@@ -130,6 +118,8 @@ Compare in a table: `| Field | DB | API | Browser | Match? |`.
 ## Phase 2: Code Review
 Delegate to `Skill(code-review)` for the changed code + the Step 0b blast radius. Read the relevant `.claude/rules/{frontend,backend,admin,db-gotchas}.md` for the layer.
 
+**Possibly affected** — end the review with this list: every page, endpoint, table, job and report the changed code can reach beyond the story's own screens (callers of a changed function, importers of a changed component, pages that read a changed text key). Each item joins the Scope Lock "Indirect blast radius" row and is tested in Phase 7b.
+
 ## Phase 3: Database Validation
 Delegate to `Skill(db-check)` for the entities in scope. (Schema vs ORM model, FK integrity, orphans, soft-delete mechanism, consistency, indexes.)
 
@@ -139,11 +129,13 @@ Delegate to `Skill(api-test)` for the enumerated endpoints. (Auth, RBAC, validat
 
 **If the feature produces computed or model-generated numbers** (scores, recommendation picks, KPIs, report figures, aggregates) -> `Skill(ai-output-eval)`: recompute vs source data + the edge cases (falsy-zero, non-deterministic source-record selection, snapshot-vs-live scope, silent drops, stale recompute trigger).
 
-## Phase 5: UI/E2E + Cross-Layer
-- Delegate to `Skill(browser-test)` for the pages/flows — the **full** journey, not just the changed screen; capture console + network during every flow. **Every browser case records `Path exercised = validation-only | write`.** A write case is closed only by the network log AND a DB read-back. A story whose write path was never exercised cannot be GO.
+## Phase 5: UI/E2E + Cross-Layer (every screen, every role, as the user sees it)
+- Delegate to `Skill(browser-test)` for every screen of the **full** journey, not just the changed screen: each control checked with its screenshot opened (E14), every screen state, real-user habits (refresh, back, double click, two tabs, deep link, session end), every role and the hand-off between roles, media / downloads / uploads, and a second browser engine. Console + network during every flow. **Every browser case records `Path exercised = validation-only | write`.** A write case is closed only by the network log AND a DB read-back. A story whose write path was never exercised cannot be GO.
 - **Always during the flows -> `Skill(observability-check)`**: surface console errors / failed-slow network / backend 5xx the UI hides (a clean-looking screen can still be failing under the hood).
-- **If the change touches UI -> `Skill(visual-regression)`** (layout / overflow / truncation / responsive across breakpoints) **+ `Skill(a11y-test)`** (keyboard / ARIA / focus / WCAG contrast).
-- **Orchestrator only:** triangulate DB -> API -> Browser per the reference above (only the orchestrator has all three sets of outputs).
+- **`Skill(visual-regression)`** (layout / overflow / truncation / responsive across breakpoints) **+ `Skill(a11y-test)`** (keyboard / ARIA / focus / WCAG contrast / reflow / page language) on every screen whose output the change can alter: new or changed text, message, empty or error state, control or layout — including a backend change that changes what a screen shows. NOT APPLICABLE needs one line saying no screen shows anything the change produces.
+- Screens are tested in `<UI languages: PROJECT-PROFILE.md §16>`; text the story itself produces is tested in each language the story names.
+- When the owner scoped the run to the backend, the Phase 5 rows are NOT APPLICABLE with that citation, and every screen that shows the changed output is listed as an open UI risk in the report (E14).
+- **Orchestrator only:** triangulate DB -> API -> Browser per entity (qa-standards → Cross-Layer Consistency; the entity → table → endpoint map from `PROJECT-PROFILE.md §10` and `.claude/references/system-map.md`), compared as `| Field | DB | API | Browser | Match? |` — only the orchestrator has all three sets of outputs.
 
 ## Phase 6: Security Review
 Delegate to `Skill(security-review)` — 10-point audit (auth, RBAC, injection, XSS, CSRF, data exposure, API security, headers, sessions). Its ratings map into the Verdict Contract (SECURE→PASS, AT RISK→FAIL or NOT YET VERIFIED, VULNERABLE→FAIL, could-not-test→BLOCKED/NOT APPLICABLE).
@@ -151,10 +143,13 @@ Delegate to `Skill(security-review)` — 10-point audit (auth, RBAC, injection, 
 ## Phase 7: Performance
 Delegate to `Skill(perf-test)`. The thresholds live in ONE place: `perf-test` -> Thresholds (template defaults), overridden by `PROJECT-PROFILE.md §16`. Any threshold FAIL -> bug.
 
-## Phase 7b: Regression (regression / bugfix / release modes)
-In those modes -> `Skill(regression-runner)` over the Step 0b indirect blast radius — actively re-test the shared components / endpoints / tables / reports the change touches but is not "about". (In `full` mode this is already covered by the Phase 0 regression cases.)
+## Phase 7b: Regression (full / regression / bugfix / release modes)
+In those modes -> `Skill(regression-runner)`; **full mode runs everything regression mode runs**. Scope = the Step 0b indirect blast radius ∪ the Impact Analysis 1b areas (changed outside the declared scope) ∪ the Phase 2 **Possibly affected** list. Test each area through every layer it has and every role that reaches it; the smallest proving check is the floor, not the target. One register row `Regression: <area>` per area with a canonical result and an evidence id (completion gate check #21); Phase 0's same-feature regression cases do not replace this phase.
 
 **bugfix mode additionally:** (1) reproduce with the reporter's ORIGINAL input; (2) `git diff --name-only <base>..<fix>` must include the ticket's root-cause `file:line`, else report "symptom fixed, root cause untouched" and keep the ticket open; (3) the edge that the ORIGINAL bug's fix protected must be re-run as a negative control.
+
+## Phase 7c: Core-page sweep (every mode)
+Run qa-standards -> Core-page sweep on the build under test, whatever the story names: the build carries every merged commit, so the story's own screens are not the only ones it can break. One register row `Core-page sweep: <route>` per page of `<core pages: PROJECT-PROFILE.md §8>`, each with its raw-text scan result and an evidence id (completion gate check #20). Browser off -> one NOT APPLICABLE row citing §2.
 
 ## Phase 8: Verify, then ASSEMBLE (do not publish yet)
 1. **Verify every suspected bug** with `Skill(bug-verifier)` BEFORE it counts — no unverified bug enters the verdict. Confirmed bugs -> `Skill(bug-report)`.
@@ -166,43 +161,27 @@ In those modes -> `Skill(regression-runner)` over the Step 0b indirect blast rad
 > **Ordering is load-bearing.** The register and ledger are assembled in Phase 8, audited here, and only
 > then rendered in Phase 8b. Auditing after the report is written can only correct, never prevent.
 
-**Default (sub-agents allowed, `PROJECT-PROFILE.md §16`):** dispatch the `qa-verdict-auditor` agent with the PATH of `qa-evidence/<run-folder>/package.md` (from `verdict_check.py --package`) - the PACKAGE only — Scope Lock, acceptance criteria / authoritative source, every finding (bugs AND passes), the Evidence Ledger, the Execution Register, the proposed verdict — and never the reasoning that produced them. It returns `AUDIT_PASSED` or `AUDIT_FAILED` + challenges.
+**Default (sub-agents allowed, `PROJECT-PROFILE.md §16`):** dispatch the `qa-verdict-auditor` agent with the PATH of `qa-evidence/<run-folder>/package.md` (from `verdict_check.py --package`) - the PACKAGE only — the Step 0 prompt, Scope Lock, acceptance criteria / authoritative source, every finding (bugs AND passes), the Evidence Ledger, the Execution Register, the proposed verdict — and never the reasoning that produced them. It returns `AUDIT_PASSED` or `AUDIT_FAILED` + challenges.
 
-**When §16 disables sub-agents:** do the audit in this session under a discipline that removes your own framing:
+**When §16 disables sub-agents:** run the same checklist in this session, from the package alone.
 
-1. Put the PACKAGE in front of you and nothing else.
-2. Re-derive the verdict FROM THE PACKAGE ONLY. If a register row has no ledger row, it is not a PASS.
-   If the Scope Lock names an area with no register row, the audit FAILS ("register incomplete: <areas>").
-3. Run Verdict Integrity 1-10 (qa-standards) against every finding, item by item, and write the answers
-   down - not "checked", the actual answer. For every PASS: what evidence would prove it wrong, and did you
-   look. For every FAIL: quote the source that defines the expected behaviour.
-4. Check the confidence line arithmetic against the register rows, and that `M` equals the code-derived
-   matrix size from test-cases-generator Step 1b (not a guess).
-5. Write the result explicitly: `AUDIT_PASSED` or `AUDIT_FAILED` + the challenges.
+**Either path uses [`references/audit.md`](references/audit.md) — read it before auditing:** re-derive the verdict from the package (a register row without a ledger row is not a PASS; an area or check the Scope Lock or the Step 0 prompt names without a row FAILS), Step 1b ran, every NOT YET VERIFIED row was tried, and items 4b–4f: the `Case completeness:` / `Skills loaded:` lines and the `Core-page sweep:` / `Regression:` rows. Write `AUDIT_PASSED` or `AUDIT_FAILED` + the challenges.
 
 Either way: AUDIT_FAILED means you may not report the verdict until each challenge is resolved with evidence. A withdrawn or corrected finding is a RESULT - record it, do not hide it. The completion gate hook (advisory, or blocking when enforced) flags a verdict turn that skips any of this.
 
-### `/goal` — decided in Step 0 (the prompt's Run with block); arm it before Phase 0 when recommended
-
-For a long `release` or `full` run, set a `/goal` condition before starting. A separate evaluator
-re-checks it after every turn and the session keeps working until it resolves, which turns the
-Completion Gate from something you must remember into something the harness enforces. Example (example only):
-
-> `/goal Every row of the Execution Register carries one of the five canonical values (qa-standards -> Verdict Contract), every finding has an Evidence Ledger row, and the verdict audit returned AUDIT_PASSED.`
-
-Claude Code stops the run if it stalls, so keep the condition objective and checkable.
+**`/goal`** is decided in Step 0 and never waited for — the condition and its example: [`references/step-0.md`](references/step-0.md) → /goal.
 
 ## Phase 8b: Render the report (ONLY after the Phase 8a AUDIT_PASSED)
 
 Now delegate to `Skill(qa-report)`. It renders the **already-audited** register, ledger and
 findings into the standard report. It does not re-derive the verdict and it does not introduce
-findings the auditor never saw. If the audit changed anything, the corrected material is what
+findings the Phase 8a audit never saw. If the audit changed anything, the corrected material is what
 gets rendered.
 
 ### Verdict
-Print the canonical run verdict exactly as defined in qa-standards -> **Verdict Contract** (the ONLY definition),
+Open the verdict with the **Run line** in plain text, `Run: full-qa | QA mode: <mode> | Audit: AUDIT_PASSED` (qa-standards -> Verdict Contract; the completion gate reads it, checks #18–#22). Print the canonical run verdict exactly as defined in qa-standards -> **Verdict Contract** (the ONLY definition),
 with the mandatory confidence line, every coverage gap named (including every phase skipped because its
-capability is off), and the escape classes E1–E13 that were actively checked. Any verdict that changes a
+capability is off), and the escape classes E1–E15 that were actively checked. Any verdict that changes a
 tracker status requires the Phase 8a AUDIT_PASSED first and follows the transition rules in `PROJECT-PROFILE.md §15`.
 
 ---
@@ -211,7 +190,7 @@ tracker status requires the Phase 8a AUDIT_PASSED first and follows the transiti
 
 Update auto-memory before claiming completion — full ritual in qa-standards -> Memory Ritual. If it cannot be persisted -> **HALT and tell the user**; never report success.
 
-1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it is allowed). Frontmatter `name` / `description` / `metadata.type`.
+1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it is allowed). Frontmatter `name` / `description` / `metadata.type`. It is the run's only memory file: the skills this run loaded write none of their own.
 2. **Cross-reference first** — grep the folder for the endpoint/path/user-ID/symptom; UPDATE an existing entry instead of filing a duplicate; mark any disproved older fact SUPERSEDED.
 3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer whose link title carries the date.
 4. **Content:** feature + date, verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**; a skill alias may follow in parentheses), the audit result, bugs (ID, severity, layer, NEW/DUPLICATE), test data (IDs/accounts by identifier), the prompt path and its Research Register gaps, root-cause `path:line`, regression risks for next time, any prior memory disproved.
@@ -220,11 +199,4 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 ---
 
 ## Wiring for the escape classes (qa-standards → "Escape classes & their gates")
-
-- **Step 0:** the prompt-generator's Research Register rows marked UNKNOWN / RETRIEVE become Phase 1 checks or named coverage gaps, never silence; its Run with block decides `/goal` / `/loop` before Phase 0.
-- **Step 0a:** the Scope Lock's `M` comes from `test-cases-generator` Step 1b (code-derived matrix), never from intuition (E12).
-- **Phase 1:** `env-health` release radar (E11) and prod sentinel (E10, when Prod-DB is on); a content import in the last 14 days triggers `latent-pattern-sweep` before Phase 2 (E2, E3).
-- **Phase 1:** the input-class registry from `test-data-manager`; every parser/upload surface in scope gets ≥2 classes, one of them the class production has never held (E4).
-- **Phase 5:** every browser case records `Path exercised = validation-only | write`; a write case is closed only by the network log AND a DB read-back (E5, E8).
-- **bugfix mode:** original input re-run; the fix must touch the root-cause file:line; the original fix's edge re-run as a negative control (E6).
-- **Any phase:** an anomaly ends as a ticket or as "expected" with a cited source. The words "by design", "workaround", "unresolved", "first-ever" in a report are a gate failure unless a ticket id sits beside them (E1, E9).
+Per-phase wiring: [`references/audit.md`](references/audit.md) → Escape-class wiring (each phase above carries its gate; the audit checks every one).

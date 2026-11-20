@@ -20,6 +20,8 @@ Log into the project's portals for QA testing. This is a **utility** used by oth
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "Which surface (main app / admin) and which role (Admin / Manager / User / Guest, or a named test account from PROJECT-PROFILE.md §7)? Browser session or API token?"

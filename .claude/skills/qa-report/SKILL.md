@@ -16,6 +16,8 @@ Compile all QA findings into a structured report with a GO/NO-GO recommendation.
 ## ARGUMENTS
 $ARGUMENTS
 
+**Called from a run skill (`/full-qa`, `/qa-validate`, `/release-check`, `/regression-runner`):** use the caller's Scope Lock and case IDs instead of writing new ones, never stop to ask, return your findings and evidence rows to the caller's Execution Register and Evidence Ledger, and skip the Post-Session memory write: the caller writes the run's single memory file (full-qa → Phase skill map).
+
 ## If no arguments provided
 Ask, then STOP until answered:
 > "Which run should I report? Give the run folder (qa-evidence/<run-folder>/) or paste the findings, register and ledger."
@@ -45,7 +47,7 @@ qa-evidence/<run-folder>` exits 0 - a report that disagrees with its own run rec
 For a trend across runs, `verdict_check.py --summary qa-evidence` prints one line per run.
 
 - **Evidence files:** read from `qa-evidence/` via `mcp__filesystem__read_file` / `mcp__filesystem__list_directory` — the run folder `qa-evidence/<TICKET-KEY or BUG-YYYYMMDD-HHMMSS>-<yyyymmdd>/`.
-- **Conversation context:** TodoWrite state and test results from the current session (Scope Lock, the six questions, Evidence Ledgers, Execution Registers, bug reports, cross-layer tables produced by the specialist skills, and the audit result).
+- **Conversation context:** the Execution Register and test results from the current session (Scope Lock, the six questions, Evidence Ledgers, Execution Registers, bug reports, cross-layer tables produced by the specialist skills, and the audit result).
 - **Memory:** grep `<memory folder: PROJECT-PROFILE.md §12>/*.md` for prior runs on this feature to mark bugs NEW vs DUPLICATE. A remembered result is a lead, never evidence (qa-standards → Fresh vs Historical) — only rows captured THIS run count as current.
 
 If a section has no data because that dimension was not tested, record it as a **Coverage Gap** (Section 3a) — do not leave it blank and do not infer a PASS.
@@ -79,6 +81,7 @@ One row per in-scope area from the Scope Lock. `Result` ∈ PASS / FAIL / BLOCKE
 |---|---|---|---|---|---|---|
 
 ### Section 1: Executive Summary
+Open Section 1 with the Run line in plain text (never in backticks), `Run: <skill> | QA mode: <mode> | Audit: AUDIT_PASSED`, skill and mode taken from the caller's run (qa-standards -> Verdict Contract; the completion gate reads it, check #22).
 - Feature/Story name, Date, Environment, Verdict: **GO / NO-GO / PARTIAL** (qa-standards → Verdict Contract; policy knob in `PROJECT-PROFILE.md §16`).
 - Confidence line (mandatory): `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: <one line or "none">`. Confidence is proportional to evidence — if 8 of 10, say 8 of 10.
 - Quick stats: tests run, passed, failed, bugs found (confirmed only).
@@ -143,7 +146,7 @@ Confirmed bugs only — each cites its Evidence ID(s) and its classification (FE
 **Verdict — per the project's verdict policy (`PROJECT-PROFILE.md §16`; default strict binary as defined in qa-standards → Verdict Contract: GO = exactly 0 confirmed bugs across all executed areas and 0 NOT YET VERIFIED rows in mandatory scope; NO-GO = 1+ confirmed bugs, any layer, any severity; PARTIAL = a hard blocker stopped an in-scope area — name it. No "conditional GO" and no severity weighting unless §16 says otherwise). This skill does not restate or re-define the rule.** Print the canonical word first; a skill alias may follow in parentheses. Use the report vocabulary Confirmed / Finding / Blocked / Remaining Risk / Not Applicable.
 
 **Confidence line:** `Verified N of M in-scope areas; BLOCKED k; NOT YET VERIFIED j; Remaining Risk: …`
-**Escape classes checked:** [which of E1–E13 (qa-standards → Escape classes & their gates) were actively checked this run; an unchecked class is a NOT YET VERIFIED row, not silence]
+**Escape classes checked:** [which of E1–E15 (qa-standards → Escape classes & their gates) were actively checked this run; an unchecked class is a NOT YET VERIFIED row, not silence]
 **Rationale:** [based on findings + ledger]
 **Risks:** [known risks if released, incl. coverage gaps from 3a]
 **Conditions:** [what must be fixed first if NO-GO]
@@ -167,7 +170,7 @@ Update auto-memory before claiming completion — full ritual in qa-standards ->
 
 1. **Write/update** a memory file under `<memory folder: PROJECT-PROFILE.md §12>` with the `Write` tool (the only path it is allowed). Frontmatter `name` / `description` / `metadata.type`.
 2. **Cross-reference first** — grep the folder for the feature / endpoint / file path / user-ID / symptom; UPDATE an existing entry with today's report instead of filing a duplicate.
-3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title>](<file>.md) — <hook>`.
+3. **Update** `MEMORY.md` with a one-line (<=200-char) pointer: `- [<title> YYYY-MM-DD](<file>.md) — <hook>` (date in the link title — escape class E13).
 4. **Content:** feature + date, the final verdict = the canonical run verdict per `qa-standards` -> Verdict Contract (**GO / NO-GO / PARTIAL**; a skill alias may follow in parentheses) plus the confidence line, every confirmed bug (ID, severity, layer, NEW/DUPLICATE, tracker key), test data used (IDs / account identifiers — never passwords), root-cause `path:line`, coverage gaps carried forward, escape classes checked, regression risks for next time, and any prior memory this report disproved.
 5. **Disproved memory:** when this run disproves an older memory fact, mark that entry `SUPERSEDED (<date>, <evidence id>)` and point it at the new one - never delete it silently.
 6. **Verify:** `ls -la "<memory folder: PROJECT-PROFILE.md §12>/<file>.md"` shows non-zero size, else HALT.

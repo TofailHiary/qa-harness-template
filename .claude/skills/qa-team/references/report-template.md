@@ -57,12 +57,20 @@ Hand over ONLY the package — Scope Lock, authoritative source, every finding (
 Evidence Ledger, the **Execution Register** and the proposed verdict — never your reasoning or transcript.
 - Sub-agents allowed (PROJECT-PROFILE.md §16): dispatch `qa-verdict-auditor` via the `Agent` tool (a judge, not a second QA run).
 - Sub-agents disabled (§16): audit in-session — re-derive the verdict from the package alone, item by
-  item against qa-standards -> Verdict Integrity #1-8 and the Completion Gate; write AUDIT_PASSED / AUDIT_FAILED.
+  item against qa-standards -> Verdict Integrity #1-10 and the Completion Gate; write AUDIT_PASSED / AUDIT_FAILED.
 `AUDIT_FAILED` -> you may NOT state the verdict; resolve each challenge with evidence, then re-audit
 if findings moved. Its challenges are leads: reproduce first-hand anything you act on
-(qa-standards -> Verdict Integrity #7). Record that the audit ran, and how.
+(qa-standards -> Verdict Integrity #7). Record that the audit ran, and how. The checklist is full-qa
+`references/audit.md` (items 1–5 and 4b–4f).
+
+### Lines the completion gate reads (qa-standards -> references/report-contract.md)
+Case completeness: <from test-cases-generator Step 1d, or n/a (<why>)>                       <- check #18
+Skills loaded: n/a (lanes are agents: <lanes launched>), or each skill the Lead loaded with ✓     <- check #19
+| CP-<n> | Core-page sweep: <route> | ... | <result> | <evidence id> |   <- one row per page of PROJECT-PROFILE.md §8, from Agent 1; Browser off -> NOT APPLICABLE citing §2 (check #20)
+| R-<n> | Regression: <area> | ... | <result> | <evidence id> |        <- full / regression / bugfix / release mode, one row per blast-radius area (check #21)
 
 ### Verdict — per qa-standards -> Verdict Contract (policy: PROJECT-PROFILE.md §16, default strict binary)
+Run: qa-team | QA mode: <mode> | Audit: AUDIT_PASSED      <- first line of the verdict, plain text (completion gate check #22)
 [ ] GO (PASS) — 0 confirmed bugs across all layers, 0 NOT YET VERIFIED in mandatory scope
 [ ] NO-GO (FAIL) — 1+ confirmed bugs (any layer, any severity)
 [ ] PARTIAL — a hard blocker stopped an in-scope area (name it)
@@ -71,6 +79,6 @@ Escape classes actively checked (qa-standards -> Escape classes & their gates): 
 **Reason**: [Explanation — no "seems fine / probably / should work / looks correct"]
 ```
 
-Before declaring GO: if the `superpowers` plugin is installed (`PROJECT-PROFILE.md §17`), run `superpowers:verification-before-completion`; otherwise by hand — re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-8 against your own conclusions and quote the evidence row behind every PASS. For a non-obvious cross-layer root cause: `superpowers:systematic-debugging` if installed; otherwise 3-5 ranked falsifiable hypotheses, one variable at a time, accept only a reproduced cause.
+Before declaring GO: if the `superpowers` plugin is installed (`PROJECT-PROFILE.md §17`), run `superpowers:verification-before-completion`; otherwise by hand — re-run the qa-standards Completion Gate checklist and Verdict Integrity #1-10 against your own conclusions and quote the evidence row behind every PASS. For a non-obvious cross-layer root cause: `superpowers:systematic-debugging` if installed; otherwise 3-5 ranked falsifiable hypotheses, one variable at a time, accept only a reproduced cause.
 
 **Ticket transition (only when asked, Jira on):** a verdict that changes a ticket status requires a fresh live read of the ticket this run, the audit pass above, and the transition / assignee rules in `PROJECT-PROFILE.md §15`.

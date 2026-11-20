@@ -38,7 +38,13 @@ the git-ignored `.mcp.json` do you take them (Step 5) — `doctor.py` will keep 
 `§2 Capability Map` flag `off` with a one-line reason and continue. For §12 ask which repos are
 QA targets (protected) and which are the team's own tooling (owned — edits/commits allowed). For §15
 ask the tracker, project key, ticket id pattern and the filing/transition rules. For §16 confirm the
-policy knobs (defaults: strict-binary verdict, sub-agents allowed, execute every case, gate advisory).
+policy knobs (defaults: strict-binary verdict, sub-agents allowed, execute every case, gate advisory) and the
+**UI languages in scope** (default: the app's default language only) and **Browsers / devices in scope** (default: Chromium + WebKit on every screen of the journey, Firefox when forms / media / layout change). For §8 also list each role's **core
+pages** — the landing page and main navigation that role meets first — as indented sub-bullets under
+`**Core pages per role (core-page sweep):**`, each route in backticks: derive them from the frontend route
+constants (§9) and, when Browser is on, confirm them against the live menu; the completion gate counts these
+routes for the core-page sweep. For §9 record the **shared text files** (the i18n / locale bundles every page
+reads) for the text-key impact check.
 For §17 check `claude plugin list` (or ask) whether `superpowers` / `mattpocock-skills` are installed.
 
 ## Step 3 — Write the profile
